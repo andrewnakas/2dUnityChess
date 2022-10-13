@@ -92,6 +92,8 @@ public class King : ChessPiece
                                 if (board[2,0] == null){
                                     if (board[1,0] == null){
                                         // king and rook are in right positions, havent moved? and nothing in between them we can castle left
+                                        //check to make sure nothing is attacking the 2 or 3 sqiares as the king cant pass over attacking pieces
+                                        
                                         availableMoves.Add(new Vector2Int(2,0));
                                         r = SpecialMove.Castling;
                                     }

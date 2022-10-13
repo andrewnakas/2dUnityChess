@@ -552,7 +552,8 @@ private bool ContainsValidMove(ref List<Vector2Int> moves, Vector2 pos){
        for (int x = 0; x < TileCountX; x++ ){
            for (int y = 0; y < TileCountY; y++){
                if (chessPieces[x,y] != null){
-                if (chessPieces[x,y].team == targetTeam){
+                if (chessPieces[x,y].team != targetTeam){
+                  
                     defendingPieces.Add(chessPieces[x,y]);
                     if (chessPieces[x,y].type == ChessPieceType.King){
                         targetKing = chessPieces[x,y];
@@ -573,16 +574,24 @@ private bool ContainsValidMove(ref List<Vector2Int> moves, Vector2 pos){
                 }
         }
         //are we in check rn
+         List<Vector2Int> defendingMoveAvailible = new List<Vector2Int>(); 
         if (ContainsValidMove(ref currentAvailibleMoves, new Vector2Int( targetKing.currentX, targetKing.currentY ))){
             // king is under attack can we move something to help?
            for (int i = 0; i < defendingPieces.Count; i++ ){
-            List<Vector2Int> defendingMoveAvailible = defendingPieces[i].GetAvailableMoves(ref chessPieces, TileCountX, TileCountY);
+           defendingMoveAvailible = defendingPieces[i].GetAvailableMoves(ref chessPieces, TileCountX, TileCountY);
+
            SimulateMoveForSinglePiece(defendingPieces[i], ref defendingMoveAvailible, targetKing);
-           if (defendingMoveAvailible.Count != 0){
+           // Debug.Log ("moves avalalible" +defendingMoveAvailible.Count + " " + defendingPieces.Count );
+            if (defendingMoveAvailible.Count != 0){
                return false;
-           }
+           } else {
            return true;
            }
+           }
+           // Debug.Log ("moves avalalible" +defendingMoveAvailible.Count );
+
+          
+           
         }
 
 
