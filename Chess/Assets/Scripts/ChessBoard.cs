@@ -547,16 +547,17 @@ private bool ContainsValidMove(ref List<Vector2Int> moves, Vector2 pos){
         int targetTeam = (chessPieces[lastMove[1].x, lastMove[1].y].team == 0)? 1 : 0;
        List<ChessPiece> attackingPieces = new List<ChessPiece>();
        List<ChessPiece> defendingPieces = new List<ChessPiece>();
-
+        Debug.Log("target team" +targetTeam);
        ChessPiece targetKing = null;
        for (int x = 0; x < TileCountX; x++ ){
            for (int y = 0; y < TileCountY; y++){
                if (chessPieces[x,y] != null){
-                if (chessPieces[x,y].team != targetTeam){
+                if (chessPieces[x,y].team == targetTeam){
                   
                     defendingPieces.Add(chessPieces[x,y]);
                     if (chessPieces[x,y].type == ChessPieceType.King){
                         targetKing = chessPieces[x,y];
+                        Debug.Log (x + y);
                     }
                 } else {
                     attackingPieces.Add(chessPieces[x,y]);
@@ -575,27 +576,30 @@ private bool ContainsValidMove(ref List<Vector2Int> moves, Vector2 pos){
         }
         //are we in check rn
          List<Vector2Int> defendingMoveAvailible = new List<Vector2Int>(); 
+
         if (ContainsValidMove(ref currentAvailibleMoves, new Vector2Int( targetKing.currentX, targetKing.currentY ))){
             // king is under attack can we move something to help?
+            Debug.Log ("moves avalalible" +defendingMoveAvailible.Count + " " + defendingPieces.Count );
+
            for (int i = 0; i < defendingPieces.Count; i++ ){
            defendingMoveAvailible = defendingPieces[i].GetAvailableMoves(ref chessPieces, TileCountX, TileCountY);
 
            SimulateMoveForSinglePiece(defendingPieces[i], ref defendingMoveAvailible, targetKing);
-           // Debug.Log ("moves avalalible" +defendingMoveAvailible.Count + " " + defendingPieces.Count );
+            Debug.Log ("moves avalalible" +defendingMoveAvailible.Count + " " + defendingPieces.Count );
             if (defendingMoveAvailible.Count != 0){
                return false;
-           } else {
-           return true;
+           } 
            }
+           return true;
            }
            // Debug.Log ("moves avalalible" +defendingMoveAvailible.Count );
 
           
            
-        }
+         return false;
 
 
-       return false;
+      
     }
     private void DisplayVictory(int team){
       if (team == 0){
