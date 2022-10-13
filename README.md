@@ -17,7 +17,7 @@ https://sharechess.github.io/stylus/pieces/anarchy.user.css
 Don't use them commercially, get your own god damn pieces
 Thanks caderek!
 
-
+# Next Steps
 This project is currently at the state of the 8th video in his tutorial
 things im going to impliment in the tutorial next are the move list and the promotion selection ui
 
