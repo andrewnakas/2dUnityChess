@@ -39,7 +39,7 @@ public class Pawn : ChessPiece
       return r;
     }
 
-    public override SpecialMove GetSpecialMoves(ref ChessPiece[,] board, ref List<Vector2Int[]> moveList, ref List<Vector2Int> availableMoves){
+    public override SpecialMove GetSpecialMoves(ref ChessPiece[,] board, ref List<Vector2Int[]> moveList, ref List<Vector2Int> availableMoves, int tileCountX, int tileCountY){
    
         int direction = (team== 0 )? 1 : -1;
         //promotion

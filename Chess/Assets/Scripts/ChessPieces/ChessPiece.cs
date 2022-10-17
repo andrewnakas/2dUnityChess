@@ -48,7 +48,7 @@ public virtual List<Vector2Int> GetAvailableMoves(ref ChessPiece[,] board, int t
    return r;
 }
 
-public virtual SpecialMove GetSpecialMoves(ref ChessPiece[,] board, ref List<Vector2Int[]> moveList,ref List<Vector2Int> availableMoves ){
+public virtual SpecialMove GetSpecialMoves(ref ChessPiece[,] board, ref List<Vector2Int[]> moveList,ref List<Vector2Int> availableMoves,int tileCountX,int tileCountY ){
 
     return SpecialMove.None;
 }

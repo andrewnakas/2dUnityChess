@@ -75,7 +75,7 @@ public class King : ChessPiece
         
         
         }
-         public override SpecialMove GetSpecialMoves(ref ChessPiece[,] board, ref List<Vector2Int[]> moveList, ref List<Vector2Int> availableMoves){
+         public override SpecialMove GetSpecialMoves(ref ChessPiece[,] board, ref List<Vector2Int[]> moveList, ref List<Vector2Int> availableMoves,int tileCountX,int tileCountY){
         //castles
         SpecialMove r = SpecialMove.None;
         var kingMove = moveList.Find(m => m[0].x == 4 && m[0].y == ((team == 0)? 0 : 7));
@@ -92,10 +92,11 @@ public class King : ChessPiece
                                 if (board[2,0] == null){
                                     if (board[1,0] == null){
                                         // king and rook are in right positions, havent moved? and nothing in between them we can castle left
-                                        //check to make sure nothing is attacking the 2 or 3 sqiares as the king cant pass over attacking pieces
-                                        
-                                        availableMoves.Add(new Vector2Int(2,0));
-                                        r = SpecialMove.Castling;
+                                        //check to make sure nothing is attacking the 3 sqiares as the king cant pass over attacking pieces
+                                       if (checkForWhiteLeftCastlesAttack(board,tileCountX,tileCountY) == false){
+                                            availableMoves.Add(new Vector2Int(2,0));
+                                            r = SpecialMove.Castling;
+                                       }
                                     }
                                 }
                             }
@@ -108,11 +109,11 @@ public class King : ChessPiece
                         if (board[7,0].team == 0){
                             if (board[5,0] == null){
                                 if (board[6,0] == null){
-                                   
+                                    if (checkForWhiteRightCastlesAttack(board,tileCountX,tileCountY) == false){
                                         // king and rook are in right positions, havent moved? and nothing in between them we can castle left
                                         availableMoves.Add(new Vector2Int(6,0));
                                         r = SpecialMove.Castling;
-                                    
+                                    }
                                 }
                             }
                         }
@@ -126,9 +127,11 @@ public class King : ChessPiece
                             if (board[3,7] == null){
                                 if (board[2,7] == null){
                                     if (board[1,7] == null){
+                                          if (checkForBlackLeftCastlesAttack(board,tileCountX,tileCountY) == false){
                                         // king and rook are in right positions, havent moved? and nothing in between them we can castle left
                                         availableMoves.Add(new Vector2Int(2,7));
                                         r = SpecialMove.Castling;
+                                          }
                                     }
                                 }
                             }
@@ -141,11 +144,11 @@ public class King : ChessPiece
                         if (board[7,7].team == 1){
                             if (board[5,7] == null){
                                 if (board[6,7] == null){
-                                   
+                                        if (checkForBlackRightCastlesAttack(board,tileCountX,tileCountY) == false){
                                         // king and rook are in right positions, havent moved? and nothing in between them we can castle left
                                         availableMoves.Add(new Vector2Int(6,7));
                                         r = SpecialMove.Castling;
-                                    
+                                    }    
                                 }
                             }
                         }
@@ -156,4 +159,101 @@ public class King : ChessPiece
         }
         return r;
          }
+
+             private bool checkForWhiteLeftCastlesAttack(ChessPiece[,] board, int tileCountX,int tileCountY){
+        //check if any piece is attacking the 0,3 square as the king cant hop over attack
+        //first get all the attacking pieces
+        List<ChessPiece> attackingPieces = new List<ChessPiece>();
+        for (int x = 0; x < tileCountX; x++ ){
+           for (int y = 0; y < tileCountY; y++){
+           if (board[x,y] != null ){
+           if (board[x,y].team == 1){
+               attackingPieces.Add(board[x,y]);
+           }
+           }
+           }
+        }
+           //now that we have attacking moves check if any are targeting 0,3 square 
+            for (int i = 0; i < attackingPieces.Count; i++){
+                List<Vector2Int> pieceMoves = attackingPieces[i].GetAvailableMoves(ref board, tileCountX,tileCountY);
+                for (int b = 0; b < pieceMoves.Count; b++){
+                   if (pieceMoves[b] == new Vector2Int(3,0)){
+                       return true;
+                   }
+                }
+            }
+            return false;
+    }
+            private bool checkForWhiteRightCastlesAttack(ChessPiece[,] board, int tileCountX,int tileCountY){
+        //check if any piece is attacking the 0,3 square as the king cant hop over attack
+        //first get all the attacking pieces
+        List<ChessPiece> attackingPieces = new List<ChessPiece>();
+        for (int x = 0; x < tileCountX; x++ ){
+           for (int y = 0; y < tileCountY; y++){
+           if (board[x,y] != null ){
+           if (board[x,y].team == 1){
+               attackingPieces.Add(board[x,y]);
+           }
+           }
+           }
+        }
+           //now that we have attacking moves check if any are targeting 0,3 square 
+            for (int i = 0; i < attackingPieces.Count; i++){
+                List<Vector2Int> pieceMoves = attackingPieces[i].GetAvailableMoves(ref board, tileCountX,tileCountY);
+                for (int b = 0; b < pieceMoves.Count; b++){
+                   if (pieceMoves[b] == new Vector2Int(5,0)){
+                       return true;
+                   }
+                }
+            }
+            return false;
+    }
+             private bool checkForBlackLeftCastlesAttack(ChessPiece[,] board, int tileCountX,int tileCountY){
+        //check if any piece is attacking the 0,3 square as the king cant hop over attack
+        //first get all the attacking pieces
+        List<ChessPiece> attackingPieces = new List<ChessPiece>();
+        for (int x = 0; x < tileCountX; x++ ){
+           for (int y = 0; y < tileCountY; y++){
+           if (board[x,y] != null ){
+           if (board[x,y].team == 0){
+               attackingPieces.Add(board[x,y]);
+           }
+           }
+           }
+        }
+           //now that we have attacking moves check if any are targeting 0,3 square 
+            for (int i = 0; i < attackingPieces.Count; i++){
+                List<Vector2Int> pieceMoves = attackingPieces[i].GetAvailableMoves(ref board, tileCountX,tileCountY);
+                for (int b = 0; b < pieceMoves.Count; b++){
+                   if (pieceMoves[b] == new Vector2Int(3,7)){
+                       return true;
+                   }
+                }
+            }
+            return false;
+    }
+            private bool checkForBlackRightCastlesAttack(ChessPiece[,] board, int tileCountX,int tileCountY){
+        //check if any piece is attacking the 0,3 square as the king cant hop over attack
+        //first get all the attacking pieces
+        List<ChessPiece> attackingPieces = new List<ChessPiece>();
+        for (int x = 0; x < tileCountX; x++ ){
+           for (int y = 0; y < tileCountY; y++){
+           if (board[x,y] != null ){
+           if (board[x,y].team == 0){
+               attackingPieces.Add(board[x,y]);
+           }
+           }
+           }
+        }
+           //now that we have attacking moves check if any are targeting 0,3 square 
+            for (int i = 0; i < attackingPieces.Count; i++){
+                List<Vector2Int> pieceMoves = attackingPieces[i].GetAvailableMoves(ref board, tileCountX,tileCountY);
+                for (int b = 0; b < pieceMoves.Count; b++){
+                   if (pieceMoves[b] == new Vector2Int(5,7)){
+                       return true;
+                   }
+                }
+            }
+            return false;
+    }
 }
