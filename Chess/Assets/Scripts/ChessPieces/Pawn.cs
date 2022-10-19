@@ -8,7 +8,9 @@ public class Pawn : ChessPiece
       List<Vector2Int> r = new List <Vector2Int>();
 
       int direction = (team == 0)  ? 1 :-1; 
-      
+      if (currentY == 7 || currentY == 0){
+          return r;
+      }
       if (board[currentX,currentY+ direction] == null){
           r.Add(new Vector2Int(currentX, currentY + direction));
       }
@@ -44,7 +46,7 @@ public class Pawn : ChessPiece
         int direction = (team== 0 )? 1 : -1;
         //promotion
         if ((team == 0 && currentY == 6) || (team == 1 && currentY == 1)) {
-
+            Debug.Log ("promotion");
             return SpecialMove.Promotion;
 
         }

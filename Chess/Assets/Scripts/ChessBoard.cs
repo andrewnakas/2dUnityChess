@@ -1,4 +1,4 @@
-    using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -59,6 +59,9 @@ public class ChessBoard : MonoBehaviour
        [SerializeField] private float dragOffset = 0.75f;
         [SerializeField] private GameObject victoryScreen;
         [SerializeField] private TMPro.TMP_Text victoryText;
+          
+          
+          //castle check mainly needed for threefold draw check
           private bool hasForfietedWhiteCastleKingsSize;
                
         private bool hasForfietedWhiteCastleQueensSize;
@@ -66,8 +69,8 @@ public class ChessBoard : MonoBehaviour
         private bool hasForfietedBlackCastleQueensSize;
 
         //promotion wait
-        private GameObject promotionSelection;
-        private bool hasSelectedPromotion;
+       [SerializeField]private GameObject promotionSelection;
+        private bool isSelectingPromotion;
 
      
        //notation 
@@ -77,10 +80,26 @@ public class ChessBoard : MonoBehaviour
         private bool didLastMoveCapture;
         private bool didCastleKingsSize;
         private bool didCastleQueensSize;
+        //this is used for a promotion ui to delay the next turn untill they perdict the 
+        private bool didSelectPromotion;
         private bool didPromoteQueen;
         private bool didPromoteRook;
         private bool didPromoteBishop;
         private bool didPromoteKnight;
+        //ok now we need to add all the sprites so we can reasign the buttons
+        [SerializeField]private Sprite WhiteQueenImage;
+        [SerializeField]private Sprite WhiteRookImage;
+        [SerializeField]private Sprite WhiteBishopImage;
+        [SerializeField]private Sprite WhiteKnightImage;
+
+        [SerializeField]private Sprite BlackQueenImage;
+        [SerializeField]private Sprite BlackRookImage;
+        [SerializeField]private Sprite BlackBishopImage;
+        [SerializeField]private Sprite BlackKnightImage;
+
+
+
+
 
        //this is called either if white castles or forfiets castle rights
        
@@ -174,7 +193,7 @@ public class ChessBoard : MonoBehaviour
                    // Debug. Log("hit" + hitPosition);
 
         if(currentHover == -Vector2Int.one){
-//            Debug. Log("hit" + hitPosition);
+           Debug. Log("hit" + hitPosition);
             currentHover = hitPosition;
             tiles [hitPosition.x,hitPosition.y].layer = LayerMask.NameToLayer("Hover");
         }
@@ -436,14 +455,22 @@ public IEnumerator ProcessCheck(){
         CheckforCastles(cp, previousPosition);
        }
 
+     
+        //is selecting promotion means the turn is not over until you select your piece you want
+        if (isSelectingPromotion == false ){
         ProcessNotation();
         //lets check for them draws
         CheckForInsufficientDraw();
         CheckForNoMovesDraw();
         CheckForThreeFoldDraw();
         CheckFor50MoveDraw();
-
+       
         isWhiteTurn = !isWhiteTurn;
+
+       
+       
+        }
+
         
         return true;
 
@@ -607,32 +634,47 @@ public IEnumerator ProcessCheck(){
 
     return false;
     }
-    private void ProcessSpecialMove(){
-     if (specialMove == SpecialMove.EnPassant){
-         threeFoldEnPassant = true;
-         var newMove = moveList[moveList.Count -1];
-         ChessPiece winningPawn = chessPieces[newMove[1].x,newMove[1].y];
-         var targetPawnPosition = moveList[moveList.Count -2];
-         ChessPiece enemyPawn = chessPieces[targetPawnPosition[1].x,targetPawnPosition[1].y];
-         if (winningPawn.currentX == enemyPawn.currentX){
-             if (winningPawn.currentY == enemyPawn.currentY-1 || winningPawn.currentY == enemyPawn.currentY+1 ){
-                 if (enemyPawn.team == 0){
-                     deadWhites.Add(enemyPawn);
-                     enemyPawn.SetScale (Vector3.one *deathSize);
-                     enemyPawn.SetPosition (new Vector3 (8*tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadWhites.Count);
-                 } else {
-                      deadBlacks.Add(enemyPawn);
-                     enemyPawn.SetScale (Vector3.one *deathSize);
-                     enemyPawn.SetPosition (new Vector3 (-tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadBlacks.Count);
-                 }
-                 chessPieces[enemyPawn.currentX,enemyPawn.currentY] = null;
-             }
+    public void ProcessPromotionUi(){
+        promotionSelection.SetActive(true);
+        Vector2Int[] lastMove  = moveList[moveList.Count-1];
 
-         }
-      }
+        if (isWhiteTurn == true){
+            //white team
+       //set postion to that of last Pawn
+       
+        promotionSelection.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position; 
+             promotionSelection.transform.eulerAngles = new Vector3 (0,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(0).transform.localEulerAngles = new Vector3 (0,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(1).transform.localEulerAngles = new Vector3 (0,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(2).transform.localEulerAngles = new Vector3 (0,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(3).transform.localEulerAngles = new Vector3 (0,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(0).GetComponent<Image>().sprite = WhiteQueenImage;
+        promotionSelection.transform.GetChild(0).transform.GetChild(1).GetComponent<Image>().sprite = WhiteRookImage;
+        promotionSelection.transform.GetChild(0).transform.GetChild(2).GetComponent<Image>().sprite = WhiteBishopImage;
+        promotionSelection.transform.GetChild(0).transform.GetChild(3).GetComponent<Image>().sprite = WhiteKnightImage;
 
-      if (specialMove == SpecialMove.Promotion)
-      {
+        //change 
+        } else {
+        promotionSelection.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position; 
+      
+        promotionSelection.transform.GetChild(0).transform.GetChild(0).transform.localEulerAngles = new Vector3 (180,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(1).transform.localEulerAngles = new Vector3 (180,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(2).transform.localEulerAngles = new Vector3 (180,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(3).transform.localEulerAngles = new Vector3 (180,0,0);
+        promotionSelection.transform.eulerAngles = new Vector3 (180,0,0);
+        promotionSelection.transform.GetChild(0).transform.GetChild(0).GetComponent<Image>().sprite = BlackQueenImage;
+        promotionSelection.transform.GetChild(0).transform.GetChild(1).GetComponent<Image>().sprite = BlackRookImage;
+        promotionSelection.transform.GetChild(0).transform.GetChild(2).GetComponent<Image>().sprite = BlackBishopImage;
+        promotionSelection.transform.GetChild(0).transform.GetChild(3).GetComponent<Image>().sprite = BlackKnightImage;
+
+
+        //for black rotate position 180
+        //spawn in black pieces for button sprites
+        // set position to black 
+        }
+    }
+    public void ProcessQueenSelect(){
+
           Vector2Int[] lastMove  = moveList[moveList.Count-1];
           ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
 
@@ -661,6 +703,170 @@ public IEnumerator ProcessCheck(){
                   didPromoteQueen = true;
               }
           }
+          promotionSelection.SetActive(false);
+          isSelectingPromotion = false;
+            //make the process happen because we skipped it at the end. 
+            ProcessNotation();
+            //lets check for them draws
+            CheckForInsufficientDraw();
+            CheckForNoMovesDraw();
+            CheckForThreeFoldDraw();
+            CheckFor50MoveDraw();
+            isWhiteTurn =!isWhiteTurn;
+    }
+        public void ProcessRookSelect(){
+
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Rook,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteRook = true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Rook,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteRook = true;
+              }
+          }
+          promotionSelection.SetActive(false);
+          isSelectingPromotion = false;
+            //make the process happen because we skipped it at the end. 
+            ProcessNotation();
+            //lets check for them draws
+            CheckForInsufficientDraw();
+            CheckForNoMovesDraw();
+            CheckForThreeFoldDraw();
+            CheckFor50MoveDraw();
+            isWhiteTurn =!isWhiteTurn;
+    }
+         public void ProcessBishopSelect(){
+
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Bishop,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteBishop= true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Bishop,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteBishop = true;
+              }
+          }
+          promotionSelection.SetActive(false);
+          isSelectingPromotion = false;
+            //make the process happen because we skipped it at the end. 
+            ProcessNotation();
+            //lets check for them draws
+            CheckForInsufficientDraw();
+            CheckForNoMovesDraw();
+            CheckForThreeFoldDraw();
+            CheckFor50MoveDraw();
+            isWhiteTurn =!isWhiteTurn;
+    }
+          public void ProcessKnightSelect(){
+
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Knight,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteKnight= true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Knight,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteKnight = true;
+              }
+          }
+          promotionSelection.SetActive(false);
+          isSelectingPromotion = false;
+            //make the process happen because we skipped it at the end. 
+            ProcessNotation();
+            //lets check for them draws
+            CheckForInsufficientDraw();
+            CheckForNoMovesDraw();
+            CheckForThreeFoldDraw();
+            CheckFor50MoveDraw();
+            isWhiteTurn =!isWhiteTurn;
+    }
+
+    private void ProcessSpecialMove(){
+     if (specialMove == SpecialMove.EnPassant){
+         threeFoldEnPassant = true;
+         var newMove = moveList[moveList.Count -1];
+         ChessPiece winningPawn = chessPieces[newMove[1].x,newMove[1].y];
+         var targetPawnPosition = moveList[moveList.Count -2];
+         ChessPiece enemyPawn = chessPieces[targetPawnPosition[1].x,targetPawnPosition[1].y];
+         if (winningPawn.currentX == enemyPawn.currentX){
+             if (winningPawn.currentY == enemyPawn.currentY-1 || winningPawn.currentY == enemyPawn.currentY+1 ){
+                 if (enemyPawn.team == 0){
+                     deadWhites.Add(enemyPawn);
+                     enemyPawn.SetScale (Vector3.one *deathSize);
+                     enemyPawn.SetPosition (new Vector3 (8*tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadWhites.Count);
+                 } else {
+                      deadBlacks.Add(enemyPawn);
+                     enemyPawn.SetScale (Vector3.one *deathSize);
+                     enemyPawn.SetPosition (new Vector3 (-tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadBlacks.Count);
+                 }
+                 chessPieces[enemyPawn.currentX,enemyPawn.currentY] = null;
+             }
+
+         }
+      }
+
+      if (specialMove == SpecialMove.Promotion)
+      { 
+    isSelectingPromotion = true;
+     Debug.Log ("Promotion!!!");
+      ProcessPromotionUi();
 
       }
       if (specialMove == SpecialMove.Castling){
@@ -720,12 +926,7 @@ public IEnumerator ProcessCheck(){
 
       }  
     }
-    private async void promotionSelect(){
-        promotionSelection.SetActive(true); 
-        //promotionSelect = false;
-        //await new WaitUntil(() => hasSelectedPromotion == true);
 
-    }
     private void PreventCheck(){
        ChessPiece targetKing = null;
        for (int x = 0; x < TileCountX; x++ ){
@@ -1137,8 +1338,8 @@ if (startMove == new Vector2Int(7,7) ){
             
             //before we add, we check if en passant or castlerightsforfieted;
                // add current position to the board
-               Debug.Log (threeFoldCastle  + " " +threeFoldEnPassant +  " arraySameCount" + arraySameCount );
-            Debug.Log ("added board to threefold checl list");
+//               Debug.Log (threeFoldCastle  + " " +threeFoldEnPassant +  " arraySameCount" + arraySameCount );
+  //          Debug.Log ("added board to threefold checl list");
            
              ThreeFoldCheckClass theeFolder = new ThreeFoldCheckClass(simulation, hasForfietedWhiteCastleKingsSize,hasForfietedWhiteCastleQueensSize, hasForfietedBlackCastleKingsSize,hasForfietedBlackCastleQueensSize,threeFoldEnPassant);
             threeFoldChessPiecesCheck.Add(theeFolder);
@@ -1228,10 +1429,10 @@ if (startMove == new Vector2Int(7,7) ){
   }
 
   if (hasLeftWhiteCastles == leftWhiteCastles &&  hasRightWhiteCastles  == rightWhiteCastles &&hasLeftBlackCastles == leftBlackCastles &&  hasRightBlackCastles  == rightBlackCastles  && hasEnPassant ==enPassant  ){
-    Debug.Log ("position the same and castles events match up");
+   // Debug.Log ("position the same and castles events match up");
     return true;
   } else {
-    Debug.Log ("position the same but castles dont match");
+   // Debug.Log ("position the same but castles dont match");
 
       return false;
   }
