@@ -125,6 +125,8 @@ public class ChessBoard : MonoBehaviour
         GenerateAllTiles(8,8);
         SpawnAllPieces();
         PositionAllPieces();
+     int testMoves =    MoveGenerationTest(2);
+     Debug.Log (testMoves);
     }
     public void GenerateAllTiles( int tileX, int tileY){
         tiles = new GameObject[TileCountX,TileCountY];
@@ -565,6 +567,15 @@ public IEnumerator ProcessCheck(){
         if(didPromoteQueen == true){
             s+= "Q";
         }
+        if(didPromoteRook == true){
+            s+= "R";
+        }
+        if(didPromoteKnight == true){
+            s+= "N";
+        }
+        if(didPromoteBishop == true){
+            s+= "N";
+        }
         }
         if (isInCheck == true){
             s+= "+";
@@ -643,7 +654,7 @@ public IEnumerator ProcessCheck(){
        //set postion to that of last Pawn
        
         promotionSelection.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position; 
-             promotionSelection.transform.eulerAngles = new Vector3 (0,0,0);
+        promotionSelection.transform.eulerAngles = new Vector3 (0,0,0);
         promotionSelection.transform.GetChild(0).transform.GetChild(0).transform.localEulerAngles = new Vector3 (0,0,0);
         promotionSelection.transform.GetChild(0).transform.GetChild(1).transform.localEulerAngles = new Vector3 (0,0,0);
         promotionSelection.transform.GetChild(0).transform.GetChild(2).transform.localEulerAngles = new Vector3 (0,0,0);
@@ -865,7 +876,7 @@ public IEnumerator ProcessCheck(){
       if (specialMove == SpecialMove.Promotion)
       { 
     isSelectingPromotion = true;
-     Debug.Log ("Promotion!!!");
+     //Debug.Log ("Promotion!!!");
       ProcessPromotionUi();
 
       }
@@ -1437,4 +1448,318 @@ if (startMove == new Vector2Int(7,7) ){
       return false;
   }
  }
+//chess ai
+int MoveGenerationTest(int depth){
+int numMoves = 0;
+//Get all peices
+       List<ChessPiece> whitePieces = new List<ChessPiece>();
+        List<ChessPiece> blackPieces = new List<ChessPiece>();
+        List<ChessPiece[,]> possibleBoardPositions  = new List<ChessPiece[,]>();
+
+             for (int x = 0; x < TileCountX; x++ ){
+           for (int y = 0; y < TileCountY; y++){
+               if (chessPieces[x,y] != null){
+                if (chessPieces[x,y].team == 0){
+                    whitePieces.Add(chessPieces[x,y]);
+             } else  {
+                    blackPieces.Add(chessPieces[x,y]);
+              }
+             }}} 
+// now simulate all of whites moves
+  for (int a = 0; a < whitePieces.Count; a++){
+             //get avalible moves for the other same pieces and if they hit the target piece square then
+            List<Vector2Int> pieceMoves = whitePieces[a].GetAvailableMoves(ref chessPieces, TileCountX,TileCountY);
+    //lets now get the total board positions
+    possibleBoardPositions.AddRange ( SimulateMoveForSinglePieceAI(whitePieces[a],pieceMoves ));
+    numMoves += pieceMoves.Count;
+return 1;
+  } 
+  
+  
+  // for (int a = 0; a < blackPieces.Count; a++){
+             //get avalible moves for the other same pieces and if they hit the target piece square then
+    //        List<Vector2Int> pieceMoves = whitePieces[a].GetAvailableMoves(ref chessPieces, TileCountX,TileCountY);
+     // numMoves += pieceMoves.Count;
+  //} 
+
+return numMoves;
+
+}
+
+    private List<ChessPiece[,]> SimulateMoveForSinglePieceAI(ChessPiece cp,  List<Vector2Int> moves){
+        //this section could be make to make a really basic ai, with a second or third or however mayny more simulated set of check, for defending and attacking
+        //save the current values to reset after function 
+       List<ChessPiece[,]> possibleBoardPositions  = new List<ChessPiece[,]>();
+        int actualX = cp.currentX;
+        int actualY = cp.currentY;
+      //  List<Vector2Int> movesToRemove = new List<Vector2Int>();
+        //going through all the moves, simualite them and check if we are in check
+        for (int i =0; i < moves.Count; i++){
+            int simX = moves[i].x;
+            int simY = moves[i].y;
+
+          //  Vector2Int kingPositionThisSim = new Vector2Int(targetKing.currentX,targetKing.currentY);
+            //did we simulate the kings move?
+           // if (cp.type == ChessPieceType.King){
+             //   kingPositionThisSim = new Vector2Int(simX,simY);
+           // }
+            //copy the chesspiece board for simulation 
+            ChessPiece[,] simulation = new ChessPiece[TileCountX,TileCountY];
+            List<ChessPiece> simulationAttackingPieces = new List<ChessPiece>();
+            for (int x = 0; x < TileCountX; x++ ){
+                for (int y = 0; y < TileCountY; y++){
+                    if (chessPieces[x,y]!= null){
+                        simulation [x,y] = chessPieces[x,y];
+                        if (simulation[x,y].team != cp.team){
+                            simulationAttackingPieces.Add (simulation[x,y]);
+                        }
+                    }
+                }
+            }
+            //simulate the move
+            simulation[actualX,actualY] = null;
+            cp.currentX = simX;
+            cp.currentY = simY;
+            simulation[simX,simY] = cp;
+
+            //did one of pieces get taken down during simulation
+            var deadPiece = simulationAttackingPieces.Find (c => c.currentX == simX && c.currentY == simY);
+            if (deadPiece != null){
+                //where to add evaluation
+                simulationAttackingPieces.Remove(deadPiece);
+            }
+                //is the king in trouble if so remove the mov
+           
+            possibleBoardPositions.Add (simulation);
+         }
+        //remove from the current list avalible. 
+        return possibleBoardPositions;
+    }
+
+
+    private void RecusiveMiniMax(){
+
+
+    }
+
+        //should make class that is chess boards and also returns lists of move lists for special moves and also lists of eval
+        private List<ChessPiece[,]> SimulateMoveForEntireBoardsAI(List<ChessPiece[,]> currentBoards, List<List<Vector2Int[]>> currentMoveLists, int isWhiteTurn){
+        //this section could be make to make a really basic ai, with a second or third or however mayny more simulated set of check, for defending and attacking
+        //save the current values to reset after function 
+       List<ChessPiece[,]> possibleBoardPositions  = new List<ChessPiece[,]>();
+         List<List<Vector2Int[]>> possibleMoveLists  = new  List<List<Vector2Int[]>>();
+       
+        for (int i =0; i < currentBoards.Count; i++){   
+            ChessPiece[,] simulation = new ChessPiece[TileCountX,TileCountY];
+            List<ChessPiece> simulationAttackingPieces = new List<ChessPiece>();
+            List<ChessPiece> simulationFriendlyPieces = new List<ChessPiece>();
+            List<Vector2Int[]> simulationMoveList = new List<Vector2Int[]>();
+            for (int x = 0; x < TileCountX; x++ ){
+                for (int y = 0; y < TileCountY; y++){
+                    if (currentBoards[i][x,y]!= null){
+                        simulation [x,y] = currentBoards[i][x,y];
+                        if (simulation[x,y].team != isWhiteTurn){
+                            simulationAttackingPieces.Add (simulation[x,y]);
+                        } else {
+                            simulationFriendlyPieces.Add (simulation[x,y]);
+                        }
+                    }
+                }
+            }
+
+            //set the simulation move list so it works as a ref
+            simulationMoveList =   currentMoveLists[i];
+        
+            for (int x = 0; x < simulationFriendlyPieces.Count; x++ ){
+            //simulate the moves
+               List<Vector2Int> pieceMoves = simulationFriendlyPieces[x].GetAvailableMoves(ref simulation, TileCountX,TileCountY);
+              //add the special moves to the get avalible moves list in order to get all the moves
+              //because it takes takes the list piece moves and returns special move check we can use it to handle a lot of logic
+               SpecialMove specialPieceMoves = simulationFriendlyPieces[x].GetSpecialMoves(ref simulation,ref simulationMoveList,ref pieceMoves, TileCountX,TileCountY);
+
+        //lets now get the total board positions
+    
+    //possibleBoardPositions.AddRange ( SimulateMoveForSinglePieceAI(whitePieces[a],pieceMoves ));
+            int currentX = simulationFriendlyPieces[x].currentX;
+            int currentY = simulationFriendlyPieces[x].currentY;
+            for (int t = 0; t < pieceMoves.Count; t++){
+                //ok we need to store a extra reference of the simulation attacking pieces because if we take then we need to still have orginal reference
+                //it may be faster to do another way but lets jsut do it this way
+                List<ChessPiece> movesimulationAttackingPieces =new List<ChessPiece>(simulationAttackingPieces); 
+               //dont do this for array just set it back after the move
+                //ChessPiece[,] moveSimulation = simulation;
+                int simX = pieceMoves[t].x;
+                int simY = pieceMoves[t].y;
+                //track special moves with bools
+                bool didSimCapture = false;
+                bool didQueenCastle = false;
+                bool didKingCastle = false;
+                bool didEnPassant = false;
+                bool didPromote = false;
+                //if special move happens we need to keep a refereence to the other chesspiece for reseting back
+                ChessPiece CapturedPiece = null;
+                ChessPiece QueenRook = null;
+                ChessPiece KingRook = null;
+                ChessPiece EnPassantPeopos = null;
+             
+
+            
+                simulation[currentX,currentY] = null;
+                simulationFriendlyPieces[x].currentX = simX;
+                simulationFriendlyPieces[x].currentY = simY;
+                simulation[simX,simY] =  simulationFriendlyPieces[x];
+                // add to current board move list so we can simulate all the actual moves
+                //rememver to remove the lists at the end of the for loop after we returned the custom game object 
+              simulationMoveList.Add (new Vector2Int[] {new Vector2Int(currentX,currentY) , new Vector2Int(simX,simY) } ); 
+            //did one of pieces get taken down during simulation move
+            var deadPiece = simulationAttackingPieces.Find (c => c.currentX == simX && c.currentY == simY);
+            if (deadPiece != null){
+                //where to add evaluation
+               int eval = returnCaptureMinMaxEval(deadPiece.type,isWhiteTurn);
+                simulationAttackingPieces.Remove(deadPiece);
+                didSimCapture = true;
+                CapturedPiece = deadPiece;
+            }
+            //ok now that we moved in the simulation lets manually check to see if we moved on the special moves
+            //if move is a special move than we need to place the other piece in the correct place
+            //also may eventually want to add in a little extra eval boost for castling and a +9 eval boost for promotion
+            //the way special moves work is that its going to only allow it as a real move if the get avalible moves
+            //castling
+            if (simulationFriendlyPieces[x].type  == ChessPieceType.King){
+
+                //check for last move position and current space
+                if (isWhiteTurn == 0){
+                if (currentX == 4 &&  currentY == 0){
+                    if (simX == 2){
+                        //queen castle move rook to 3
+                        //find queen rook
+                        foreach (ChessPiece cp in simulationFriendlyPieces){
+                            if (cp.type ==ChessPieceType.Rook ){
+                                if (cp.currentX == 0){
+                                    //queenside rook
+                                    simulation[cp.currentX,cp.currentY] = null;
+                                   cp.currentX = 3;
+                                    cp.currentY = 0;
+                                    simulation[3,0] = cp;
+                                    QueenRook = cp;
+                                    didQueenCastle = true;
+                                }
+                            }
+                        }
+                    }
+                    if (simX == 6){
+                        //king side castle
+                          foreach (ChessPiece cp in simulationFriendlyPieces){
+                            if (cp.type ==ChessPieceType.Rook ){
+                                if (cp.currentX == 7){
+                                    //kingside rook
+                                    simulation[cp.currentX,cp.currentY] = null;
+                                   cp.currentX = 5;
+                                    cp.currentY = 0;
+                                    simulation[5,0] = cp;
+                                    KingRook = cp;
+                                    didKingCastle = true;
+                                }
+                            }
+                        }
+                    }
+                } 
+                } else {
+                    //black castles
+                       if (currentX == 4 &&  currentY == 7){
+                    if (simX == 2){
+                        //queen castle move rook to 3
+                        //find queen rook
+                        foreach (ChessPiece cp in simulationFriendlyPieces){
+                            if (cp.type ==ChessPieceType.Rook ){
+                                if (cp.currentX == 0){
+                                    //queenside rook
+                                    simulation[cp.currentX,cp.currentY] = null;
+                                   cp.currentX = 3;
+                                    cp.currentY = 7;
+                                    simulation[3,7] = cp;
+                                    QueenRook = cp;
+                                    didQueenCastle = true;
+                                }
+                            }
+                        }
+                    }
+                    if (simX == 6){
+                        //king side castle
+                          foreach (ChessPiece cp in simulationFriendlyPieces){
+                            if (cp.type ==ChessPieceType.Rook ){
+                                if (cp.currentX == 7){
+                                    //kingside rook
+                                    simulation[cp.currentX,cp.currentY] = null;
+                                   cp.currentX = 5;
+                                    cp.currentY = 7;
+                                    simulation[5,7] = cp;
+                                    KingRook = cp;
+                                    didKingCastle = true;
+                                }
+                            }
+                        }
+                    }
+                } 
+                }
+            }
+            //promotion and en passant
+             if (simulationFriendlyPieces[x].type  == ChessPieceType.Pawn){
+                 if (isWhiteTurn == 0){
+                     if (simulationFriendlyPieces[x].currentY == 7)
+                     {
+                         //peopos ready to promote
+                        //due to this just being a simulation and no graphics lets just change the piece type
+                        simulationFriendlyPieces[x].type = ChessPieceType.Queen;
+                        didPromote = true;               
+                     }  
+                 //white passant 
+
+                 }
+
+            }
+            
+            
+            //here is the other eval boosting things like keeping pawns formation, taking with less good peices, 
+            //add in current move list positions as well
+
+            possibleBoardPositions.Add (simulation);
+            possibleMoveLists.Add (simulationMoveList);
+
+            // now lets reset the simulation board and simulation attacking piece
+
+            }
+            
+           
+            }
+         }
+        //remove from the current list avalible. 
+        return possibleBoardPositions;
+    }
+    public int returnCaptureMinMaxEval(ChessPieceType type, int team){
+        int eval = 0;
+        if (type == ChessPieceType.Pawn){
+            eval = 100;
+        }
+        if (type == ChessPieceType.Bishop){
+            eval = 300;
+        }
+         if (type == ChessPieceType.Knight){
+            eval = 300;
+        }
+        if (type == ChessPieceType.Rook){
+            eval = 500;
+        }
+        if (type == ChessPieceType.Queen){
+            eval = 900;
+        }
+        if (type == ChessPieceType.King){
+            eval = 1000000;
+        }
+        if (team ==1 ){
+            eval = eval * -1;
+        }
+        return eval;
+    }
+
 }
