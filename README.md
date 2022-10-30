@@ -1,5 +1,5 @@
 # 2dUnityChess
- 2d unity chess based on Epitome's great unity tutorial on how to make chess like and subscribe to his content it's really great. I pretty much followed the tutorial pretty closly except for making the design of board to follow 2d principles versus 3d because that's how people are used to playing chess on a screen. 
+ 2d unity chess based on Epitome's great unity tutorial on how to make chess like and subscribe to his content it's really great. I pretty much followed the tutorial pretty closly except for making the design of board to follow 2d principles versus 3d because that's how people are used to playing chess on a screen. I have now also gone through and added, draw conditions, promotion ui, move notation and fixed the glitch around being able to castle king through attacked squares. Needs a little bit of testing but it's feature complete. 
  https://www.youtube.com/watch?v=qVhG6ZWqD-o&list=PLmcbjnHce7SeAUFouc3X9zqXxiPbCz8Zp
 
 # Licensing
@@ -18,9 +18,10 @@ Don't use them commercially, get your own god damn pieces
 Thanks caderek!
 
 # Next Steps
-This project is currently at the state of the 8th video in his tutorial
-things im going to impliment in the tutorial next are the move list and the promotion selection ui
+This project is currently at the state full two player chess with all the rules
 
-Things i'm going to work on that are not in the tutorial are Draw conditions, castling check when pieces are attacking squares that the king moves through, time control, ai based evaluation board, some basic logic ai and hopfully a machine learning ai. 
+Up next is test conditions, make sure it works and looks good on mobile, time control, minimax ai. 
 
 Eventually i'm going to do the multiplayer tutorial part, make some chess varients and local bluetooth multiplayer. The project will be forked and closed source for the bluetooth part and maybe some complex variants as I'm thinking of releasing a chess app.
+
+I have a crazy idea for a new variant, frog chess! 
