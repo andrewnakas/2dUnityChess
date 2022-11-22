@@ -33,6 +33,7 @@ public class ThreeFoldCheckClass {
         
 public class ChessBoard : MonoBehaviour
 {
+    public AiManager AiCTR;
     public Material tileMaterial;
     public Material darktileMaterial;
     public ChessPiece currentlyDragging;
@@ -97,6 +98,11 @@ public class ChessBoard : MonoBehaviour
         [SerializeField]private Sprite BlackBishopImage;
         [SerializeField]private Sprite BlackKnightImage;
 
+        //stockfish ai 
+        private bool WhiteStockFishToMove = false;
+        private bool BlackStockFishToMove = false;
+        private string previousFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 
 
 
@@ -106,6 +112,9 @@ public class ChessBoard : MonoBehaviour
         private bool threeFoldCastle;
         private bool threeFoldEnPassant;
 
+        //this is tracking en passant on fen string, is so it can cordinate with y
+        private int pawnDoubleJump = -1;
+
          public List <ThreeFoldCheckClass> threeFoldChessPiecesCheck = new List <ThreeFoldCheckClass>();  
 
         [SerializeField]private TMPro.TMP_Text notationText;
@@ -114,6 +123,7 @@ public class ChessBoard : MonoBehaviour
         private bool movedPawn;
         private bool capturedPiece;
         private int movesSincePawnMoveOrCapture;
+        public int realMoveNumber;
     // Start is called before the first frame update
     void Start()
     {
@@ -189,6 +199,10 @@ public class ChessBoard : MonoBehaviour
     }
     RaycastHit info;
      Ray  ray = currentCamera.ScreenPointToRay(Input.mousePosition);
+   //should move this to after you pick up piece but for now its ok here
+   if ((isWhiteTurn && AiCTR.isWhiteStockfish == false ) || (!isWhiteTurn && AiCTR.isBlackStockfish == false)){
+
+
     if ( Physics.Raycast(ray, out info,100,LayerMask.GetMask("Tile", "Hover","Highlight")))
     {
         Vector2Int hitPosition = LookupTileIndex (info.transform.gameObject);
@@ -204,7 +218,6 @@ public class ChessBoard : MonoBehaviour
             currentHover = hitPosition;
             tiles [hitPosition.x,hitPosition.y].layer = LayerMask.NameToLayer("Hover");
         }
-    
         if (Input.GetMouseButtonDown(0)){
 
         if (chessPieces[hitPosition.x, hitPosition.y] != null){
@@ -256,6 +269,22 @@ public class ChessBoard : MonoBehaviour
                  }
 
     }
+    } else {
+        if (isWhiteTurn){
+           if (WhiteStockFishToMove == false ){
+               makeStockFishMove(previousFen);
+               WhiteStockFishToMove = true;
+               
+           } 
+        } else {
+                if (BlackStockFishToMove == false ){
+                makeStockFishMove(previousFen);
+                WhiteStockFishToMove = true;
+
+           } 
+        }
+
+    }
 // if we are dragging a peice
     if (currentlyDragging){
 
@@ -269,6 +298,23 @@ public class ChessBoard : MonoBehaviour
 
     }
 
+    }
+
+    public void makeStockFishMove(string fen){
+        AiCTR.stocky.stockData="";
+        AiCTR.stocky.FenToStock(fen);
+        StartCoroutine (waitForStock());
+
+    }
+    public IEnumerator waitForStock(){
+
+
+        yield return new WaitUntil(() =>   AiCTR.stocky.stockData != "");
+        
+        Debug.Log ("Stock Data is " + AiCTR.stocky.stockData );
+        //Process data and do move;
+        //WhiteStockFishToMove = false;
+        //BlackStockFishToMove = false;
     }
 
     private void SpawnAllPieces(){
@@ -439,6 +485,13 @@ public IEnumerator ProcessCheck(){
        // StartCoroutine (ProcessCheck());
       //  Debug.Log ("process Check 1");
         ProcessSpecialMove();
+        //double jump for fen
+        if(cp.type == ChessPieceType.Pawn){
+            if (Mathf.Abs(previousPosition.y -cp.currentY ) == 2){
+                pawnDoubleJump = cp.currentX;
+            }
+
+        }
        
         if (checkForCheckMate() == true){
             
@@ -460,13 +513,14 @@ public IEnumerator ProcessCheck(){
      
         //is selecting promotion means the turn is not over until you select your piece you want
         if (isSelectingPromotion == false ){
+        previousFen = GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
         ProcessNotation();
         //lets check for them draws
         CheckForInsufficientDraw();
         CheckForNoMovesDraw();
         CheckForThreeFoldDraw();
         CheckFor50MoveDraw();
-       
+        //Debug.Log (fen);
         isWhiteTurn = !isWhiteTurn;
 
        
@@ -480,7 +534,7 @@ public IEnumerator ProcessCheck(){
     }
     private void ProcessNotation(){
     moveNumber ++;
-    int realMoveNumber= 1;
+     realMoveNumber= 1;
     //this his how to get the actual move number
     if (moveNumber %2 != 0){
         //its an odd number 
@@ -716,6 +770,8 @@ public IEnumerator ProcessCheck(){
           }
           promotionSelection.SetActive(false);
           isSelectingPromotion = false;
+            previousFen = GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
+
             //make the process happen because we skipped it at the end. 
             ProcessNotation();
             //lets check for them draws
@@ -757,8 +813,11 @@ public IEnumerator ProcessCheck(){
           }
           promotionSelection.SetActive(false);
           isSelectingPromotion = false;
+           previousFen = GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
+
             //make the process happen because we skipped it at the end. 
             ProcessNotation();
+
             //lets check for them draws
             CheckForInsufficientDraw();
             CheckForNoMovesDraw();
@@ -798,6 +857,7 @@ public IEnumerator ProcessCheck(){
           }
           promotionSelection.SetActive(false);
           isSelectingPromotion = false;
+            previousFen = GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
             //make the process happen because we skipped it at the end. 
             ProcessNotation();
             //lets check for them draws
@@ -839,6 +899,7 @@ public IEnumerator ProcessCheck(){
           }
           promotionSelection.SetActive(false);
           isSelectingPromotion = false;
+           previousFen= GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
             //make the process happen because we skipped it at the end. 
             ProcessNotation();
             //lets check for them draws
@@ -1413,15 +1474,17 @@ if (startMove == new Vector2Int(7,7) ){
     }
     private void CheckFor50MoveDraw(){
         //50 moves without a captured piece of pawn moved
-        if (capturedPiece == true || movedPawn == true){
-            //reset
-            movesSincePawnMoveOrCapture = 0;
-        }
+      
         movesSincePawnMoveOrCapture++;
        // its 100 because there two moves in a move number black and white
         if (movesSincePawnMoveOrCapture >= 100){
             DisplayDraw(3);
 
+        }
+          //50 moves without a captured piece of pawn moved
+        if (capturedPiece == true || movedPawn == true){
+            //reset
+            movesSincePawnMoveOrCapture = 0;
         }
         capturedPiece = false;
         movedPawn = false;
@@ -1548,7 +1611,6 @@ return numMoves;
         //save the current values to reset after function 
        List<ChessPiece[,]> possibleBoardPositions  = new List<ChessPiece[,]>();
          List<List<Vector2Int[]>> possibleMoveLists  = new  List<List<Vector2Int[]>>();
-       
         for (int i =0; i < currentBoards.Count; i++){   
             ChessPiece[,] simulation = new ChessPiece[TileCountX,TileCountY];
             List<ChessPiece> simulationAttackingPieces = new List<ChessPiece>();
@@ -1592,6 +1654,7 @@ return numMoves;
                 int simY = pieceMoves[t].y;
                 //track special moves with bools
                 bool didSimCapture = false;
+               //done with special move
                 bool didQueenCastle = false;
                 bool didKingCastle = false;
                 bool didEnPassant = false;
@@ -1642,7 +1705,7 @@ return numMoves;
                                     cp.currentY = 0;
                                     simulation[3,0] = cp;
                                     QueenRook = cp;
-                                    didQueenCastle = true;
+                                    //didQueenCastle = true;
                                 }
                             }
                         }
@@ -1761,5 +1824,185 @@ return numMoves;
         }
         return eval;
     }
+    //everything we need to start the next depth level
+    public class AIChessObject
+    {
+        public List<ChessPiece[,]> chessBoards;
+        //this is for getting the updated move lists to process special moves
+        public List<List<Vector2Int[]>> currentMoveLists;
+        //position evaluation
+        public List<int> evals;
+        
+        public void AiChessObj(List<ChessPiece[,]> chesB, List<List<Vector2Int[]>> moveL,  List<int> ev)
+        {
+            chessBoards = chesB;
+            currentMoveLists = moveL;
+            evals = ev;
+        }
+    }
 
+    //end minimax ai, this is for stockfish ai/ eval/ analysis and testing 
+    public string GenerateFenFromBoard(ChessPiece[,] board,bool isWhiteTurn,bool whiteQueenCastle, bool whiteKingCastle, bool blackQueenCastle, bool blackKingCastle, int enPassant){
+        string s = "";
+        int spacesSinceLastPiece = 0;
+        for(int y = 7; y >= 0; y--){
+            for(int x = 0; x < TileCountX; x++){
+                if (board[x,y] != null){
+                   if (board[x,y].team == 0 ){
+                      if (spacesSinceLastPiece !=0){
+                          s+= spacesSinceLastPiece;
+                          spacesSinceLastPiece =0;
+                      }
+                       s+= processFenCharFromTypeAndTeam(board[x,y].type,board[x,y].team);  
+                   }  else {
+                         if (spacesSinceLastPiece !=0){
+                          s+= spacesSinceLastPiece;
+                          spacesSinceLastPiece =0;
+                      }
+                       s+= processFenCharFromTypeAndTeam(board[x,y].type,board[x,y].team);  
+                   } 
+                } else {
+                    spacesSinceLastPiece++;
+                }
+                if (x == 7){
+                    if (spacesSinceLastPiece != 0 ){
+                        s+= spacesSinceLastPiece;
+                        spacesSinceLastPiece=0;
+                    }
+                    if (y!=0){
+                    s+= "/";
+                    }
+                }
+            }
+        }
+                // now that we have the pieces sorted out we add a space and then a w or b for who is playing next
+                s+= " ";
+                if (isWhiteTurn  == false){
+                    s+= "w";
+                }else {
+                    s+= "b";
+                }
+                s+= " ";
+                     //ok now we do castling rights
+               
+                if (whiteKingCastle == true){
+                    s+= "K";
+                }
+                 if (whiteQueenCastle == true){
+                    s+= "Q";
+                }
+               
+                if (blackKingCastle == true){
+                    s+= "k";
+                }
+                if (blackQueenCastle == true){
+                    s+= "q";
+                } 
+                if (whiteKingCastle == false && whiteQueenCastle == false && blackKingCastle == false && blackQueenCastle == false){
+                    s+= "-";
+                }
+                s+= " ";
+               
+                //next thing if a pawn double jumps we need to label the en passant square 
+                //interesting how it's like this as offical versus checking surrounding pawns probably easier to compute 
+                //easier to promote knight passant an subvarients i guess
+                //bolean that will flip if double jumped in move to function.
+                if (pawnDoubleJump != -1){
+                    //there is a double jump
+                     s+=  getColFromFile(pawnDoubleJump);
+                    if (isWhiteTurn == true){
+                     s+="3";
+                    } else {
+                     s+= "6";
+                    }
+                } else {
+                    s+= "-";
+                }
+                pawnDoubleJump = -1;
+                // ok now we do that half moon and full moon, which we just snag     from process notation 
+                s+= " ";
+                s+= movesSincePawnMoveOrCapture;
+                s+= " "; 
+                s+= realMoveNumber + 1;
+
+
+
+        
+              
+        return s;
+    }
+    //helper functions for fen generation and board spawn
+    public string getColFromFile(int i){
+        string s ="";
+        if (i == 0){
+            s= "a";
+        }
+        if (i == 1){
+            s= "b";
+        }
+        if (i == 2){
+            s= "c";
+        }
+        if (i == 3){
+            s= "d";
+        }
+        if (i == 4){
+            s= "e";
+        }
+          if (i == 5){
+            s= "f";
+        }
+         if (i == 6){
+            s= "g";
+        }
+           if (i == 7){
+            s= "h";
+        }
+        return s;
+    }
+    public string processFenCharFromTypeAndTeam(ChessPieceType type, int team){
+       string s = "";
+        if (team == 0){
+            if (type == ChessPieceType.Pawn){
+                s = "P";
+            }
+              if (type == ChessPieceType.Rook){
+                s = "R";
+            }
+              if (type == ChessPieceType.Knight){
+                s = "N";
+            }
+              if (type == ChessPieceType.Bishop){
+                s = "B";
+            }
+              if (type == ChessPieceType.King){
+                s = "K";
+            }
+              if (type == ChessPieceType.Queen){
+                s = "Q";
+            }
+        } else {
+                if (type == ChessPieceType.Pawn){
+                s = "p";
+            }
+              if (type == ChessPieceType.Rook){
+                s = "r";
+            }
+              if (type == ChessPieceType.Knight){
+                s = "n";
+            }
+              if (type == ChessPieceType.Bishop){
+                s = "b";
+            }
+              if (type == ChessPieceType.King){
+                s = "k";
+            }
+              if (type == ChessPieceType.Queen){
+                s = "q";
+            }
+        }
+        return s;
+    }
+    
+    
 }
