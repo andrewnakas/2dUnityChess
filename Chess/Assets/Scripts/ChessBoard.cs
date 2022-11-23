@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
-
+using Newtonsoft.Json;
 public enum SpecialMove{
 
     None = 0,
@@ -127,7 +127,9 @@ public class ChessBoard : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-    
+        string move ="('g8e7'), ";
+    string chopped = move.Substring(2,move.Length-6);
+    Debug.Log (chopped);
     }
       void Awake()
     {
@@ -272,17 +274,18 @@ public class ChessBoard : MonoBehaviour
     } else {
         if (isWhiteTurn){
            if (WhiteStockFishToMove == false ){
-               makeStockFishMove(previousFen);
+               makeStockFishMove(previousFen,isWhiteTurn);
                WhiteStockFishToMove = true;
                
            } 
         } else {
                 if (BlackStockFishToMove == false ){
-                makeStockFishMove(previousFen);
-                WhiteStockFishToMove = true;
+                makeStockFishMove(previousFen,isWhiteTurn);
+                BlackStockFishToMove = true;
 
            } 
         }
+        
 
     }
 // if we are dragging a peice
@@ -300,22 +303,102 @@ public class ChessBoard : MonoBehaviour
 
     }
 
-    public void makeStockFishMove(string fen){
+    public void makeStockFishMove(string fen, bool team){
         AiCTR.stocky.stockData="";
         AiCTR.stocky.FenToStock(fen);
-        StartCoroutine (waitForStock());
+        StartCoroutine (WaitForStock(team));
 
     }
-    public IEnumerator waitForStock(){
+
+    public IEnumerator WaitForStock(bool team){
 
 
         yield return new WaitUntil(() =>   AiCTR.stocky.stockData != "");
         
+
         Debug.Log ("Stock Data is " + AiCTR.stocky.stockData );
         //Process data and do move;
+        //find first  PovScore( and Move.from_uci
+        string[] evalArray =  AiCTR.stocky.stockData.Split("PovScore(");
+       string eval = evalArray[1].Substring(3,5);      
+        Debug.Log (eval);
+        //find the move from uci
+            
+        UpdateEval(eval,isWhiteTurn);
+        string[] topMoveArray =  AiCTR.stocky.stockData.Split("Move.from_uci");
+        Debug.Log (topMoveArray[1]);
+        moveToNotationString(topMoveArray[1],isWhiteTurn );
+
+
+
+
         //WhiteStockFishToMove = false;
         //BlackStockFishToMove = false;
     }
+    private void UpdateEval(string eval, bool team){
+        
+    }
+    private void moveToNotationString(string move, bool team){
+        string chopped = move.Substring(2,move.Length-6);
+        // get move cordinates 
+        Debug.Log(chopped);
+        string firstTwo = chopped.Substring(0,2);
+        Debug.Log (firstTwo);
+        string secondTwo = chopped.Substring (2,2);
+        Debug.Log (secondTwo);
+        int i = 0;
+        int.TryParse(firstTwo.Substring(1,1), out i);
+        Debug.Log (i);
+        int y = getFileFromLetter (firstTwo.Substring(0,1));
+        int v = 0;
+        int.TryParse(secondTwo.Substring(1,1), out v);
+        int b = getFileFromLetter (secondTwo.Substring(0,1));
+        //find chess piece from x,y 
+        ChessPiece cp = chessPieces[y,i-1];
+        Debug.Log (cp.currentY + " " + cp.currentX + cp.type);
+        //before we make move we need to check to make sure the engine is not doing any special moves
+        // in which case we need to add them as special move object 
+        //easiest was to do that, get avalible moves and then check if there are any special moves and then see what matches up
+        //
+        //e1g1 (white short castling) // e7e8q (for promotion)
+
+
+        //now move to
+         MoveToAI(cp,b,v-1); 
+        Debug.Log ("moved");
+
+    
+    }
+    public int getFileFromLetter(string s){
+        int i = -1;
+        if (s == "a"){
+            i = 0;
+        }
+         if (s == "b"){
+            i = 1;
+        }
+         if (s == "c"){
+            i = 2;
+        }
+         if (s == "d"){
+            i = 3;
+        }
+         if (s == "e"){
+            i = 4;
+        }
+         if (s == "f"){
+            i = 5;
+        }
+         if (s == "g"){
+            i = 6;
+        }
+         if (s == "h"){
+            i = 7;
+        }
+    return i;
+    }
+   
+    
 
     private void SpawnAllPieces(){
         chessPieces = new ChessPiece[TileCountX, TileCountY];
@@ -436,6 +519,7 @@ public IEnumerator ProcessCheck(){
     Debug.Log ("waiting");
 }
     private bool MoveTo(ChessPiece cp ,int x, int y){
+        Debug.Log("moving" +x + " " + y);
         Vector2Int previousPosition = new Vector2Int(cp.currentX,cp.currentY);
         if (!ContainsValidMove(ref availableMoves, new Vector2Int(x,y)))
         {
@@ -1546,7 +1630,6 @@ return 1;
   //} 
 
 return numMoves;
-
 }
 
     private List<ChessPiece[,]> SimulateMoveForSinglePieceAI(ChessPiece cp,  List<Vector2Int> moves){
@@ -2002,6 +2085,196 @@ return numMoves;
             }
         }
         return s;
+    }
+     private void MoveToAI(ChessPiece cp ,int x, int y,string promotionString = null){
+        //same as move to just does not return out or return bool
+        Debug.Log("moving" +x + " " + y);
+        Vector2Int previousPosition = new Vector2Int(cp.currentX,cp.currentY);
+       
+        //is there another piece on the target position?
+        if (chessPieces[x,y]  != null){
+           ChessPiece ocp = chessPieces[x,y];
+           
+
+
+           if (ocp.team == 0  ){
+               if (ocp.type == ChessPieceType.King ){
+                   CheckMate(0);
+               }
+               didLastMoveCapture = true;
+               //its redundant but because we reset it in different spots lets just do it
+               capturedPiece = true;
+
+               deadWhites.Add (ocp);
+               ocp.SetScale (Vector3.one *deathSize);
+               ocp.SetPosition (new Vector3 (8*tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadWhites.Count);
+           } else {
+                  if (ocp.type == ChessPieceType.King ){
+                   CheckMate(1);
+               }
+               didLastMoveCapture = true;
+                capturedPiece = true;
+
+               deadBlacks.Add (ocp);
+               ocp.SetScale (Vector3.one *deathSize);
+               ocp.SetPosition (new Vector3 (-tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadBlacks.Count);
+
+           }
+        }
+        chessPieces[x,y] = cp;
+        chessPieces[previousPosition.x,previousPosition.y] = null; 
+        PositionSinglePiece(x,y);
+        //add to move list 
+        moveList.Add (new Vector2Int[] {previousPosition , new Vector2Int(x,y) } );
+        //check for moved pawn 50 move draw rule
+        if (cp.type == ChessPieceType.Pawn){
+            movedPawn = true;
+        }
+       // StartCoroutine (ProcessCheck());
+      //  Debug.Log ("process Check 1");
+      if (promotionString != null){
+
+        ProcessSpecialMoveAi(promotionString);
+      } else {
+        ProcessSpecialMoveAi();
+
+      }
+        //double jump for fen
+        if(cp.type == ChessPieceType.Pawn){
+            if (Mathf.Abs(previousPosition.y -cp.currentY ) == 2){
+                pawnDoubleJump = cp.currentX;
+            }
+
+        }
+       
+        if (checkForCheckMate() == true){
+            
+            if (cp.team == 1){
+            CheckMate(0);
+            } else {
+            CheckMate(1);
+            }
+        }
+        if (cp.team == 0 && (hasForfietedWhiteCastleQueensSize == false ||hasForfietedWhiteCastleKingsSize == false    ) )
+        {       
+       CheckforCastles(cp, previousPosition);
+        } 
+         if ( cp.team ==1 && (hasForfietedBlackCastleQueensSize == false ||hasForfietedBlackCastleKingsSize == false))
+         {
+        CheckforCastles(cp, previousPosition);
+       }
+
+     
+        //is selecting promotion means the turn is not over until you select your piece you want
+        if (isSelectingPromotion == false ){
+        previousFen = GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
+        ProcessNotation();
+        //lets check for them draws
+        CheckForInsufficientDraw();
+        CheckForNoMovesDraw();
+        CheckForThreeFoldDraw();
+        CheckFor50MoveDraw();
+        //Debug.Log (fen);
+        if (isWhiteTurn == true){
+            WhiteStockFishToMove = false;
+        } else {
+            BlackStockFishToMove = false;
+        }
+        isWhiteTurn = !isWhiteTurn;
+
+       
+       
+        }
+    }
+ private void ProcessSpecialMoveAi(string promo = null){
+    //this is like normal function but it actually takes a string fifth leter for promotion
+    //also it 
+     if (specialMove == SpecialMove.EnPassant){
+         threeFoldEnPassant = true;
+         var newMove = moveList[moveList.Count -1];
+         ChessPiece winningPawn = chessPieces[newMove[1].x,newMove[1].y];
+         var targetPawnPosition = moveList[moveList.Count -2];
+         ChessPiece enemyPawn = chessPieces[targetPawnPosition[1].x,targetPawnPosition[1].y];
+         if (winningPawn.currentX == enemyPawn.currentX){
+             if (winningPawn.currentY == enemyPawn.currentY-1 || winningPawn.currentY == enemyPawn.currentY+1 ){
+                 if (enemyPawn.team == 0){
+                     deadWhites.Add(enemyPawn);
+                     enemyPawn.SetScale (Vector3.one *deathSize);
+                     enemyPawn.SetPosition (new Vector3 (8*tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadWhites.Count);
+                 } else {
+                      deadBlacks.Add(enemyPawn);
+                     enemyPawn.SetScale (Vector3.one *deathSize);
+                     enemyPawn.SetPosition (new Vector3 (-tileSize, -tileSize/4, yOffset ) + new Vector3 (tileSize/2, 0,0) + (Vector3.up * deathSpacing) *deadBlacks.Count);
+                 }
+                 chessPieces[enemyPawn.currentX,enemyPawn.currentY] = null;
+             }
+
+         }
+      }
+
+      if (specialMove == SpecialMove.Promotion)
+      { 
+    isSelectingPromotion = true;
+     //Debug.Log ("Promotion!!!");
+      ProcessPromotionUi();
+
+      }
+      if (specialMove == SpecialMove.Castling){
+          threeFoldCastle = true;
+
+          var lastMove = moveList[moveList.Count -1];
+            //left
+          if (lastMove[1].x == 2 ){
+              if (lastMove[1].y  == 0 ) {
+                //white
+                ChessPiece rook = chessPieces[0,0];
+                hasForfietedWhiteCastleKingsSize = true;
+                hasForfietedWhiteCastleQueensSize = true;
+
+                chessPieces[3,0] = rook;
+                PositionSinglePiece(3,0);
+                chessPieces[0,0] = null;
+              } else if (lastMove[1].y == 7){
+                  //black
+                ChessPiece rook = chessPieces[0,7];
+                hasForfietedBlackCastleKingsSize = true;
+                hasForfietedBlackCastleQueensSize = true;
+                chessPieces[3,7] = rook;
+                PositionSinglePiece(3,7);
+                chessPieces[0,7] = null;
+                
+
+              }
+              didCastleKingsSize = true;
+              
+            //right
+          } else if (lastMove[1].x == 6){
+                if (lastMove[1].y  == 0 ) {
+                //white
+                    ChessPiece rook = chessPieces[7,0];
+                    hasForfietedWhiteCastleKingsSize = true;
+                    hasForfietedWhiteCastleQueensSize = true;
+                    chessPieces[5,0] = rook;
+                    PositionSinglePiece(5,0);
+                chessPieces[7,0] = null;
+              } else if (lastMove[1].y == 7){
+                  //black
+                //threefold draw check
+                hasForfietedBlackCastleKingsSize = true;
+                hasForfietedBlackCastleQueensSize = true;
+                ChessPiece rook = chessPieces[7,7];
+                
+                chessPieces[5,7] = rook;
+                PositionSinglePiece(5,7);
+                chessPieces[7,7] = null;
+
+              }
+
+            didCastleQueensSize = true;
+ 
+          }
+
+      }  
     }
     
     
