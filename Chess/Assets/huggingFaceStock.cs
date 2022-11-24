@@ -10,7 +10,7 @@ public class huggingFaceStock : MonoBehaviour
 
     void Start()
     {
-        //  StartCoroutine(ProcessRequest(URL,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
+        //StartCoroutine(ProcessRequest(URL,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
     }
 
     public void FenToStock( string fen){
@@ -40,7 +40,7 @@ public class huggingFaceStock : MonoBehaviour
                stockData = request.downloadHandler.text;
                Debug.Log (stockData);
             }
-        
+    request.Dispose();   
     }
 }
 

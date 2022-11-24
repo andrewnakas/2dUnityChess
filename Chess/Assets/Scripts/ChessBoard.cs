@@ -73,6 +73,10 @@ public class ChessBoard : MonoBehaviour
        [SerializeField]private GameObject promotionSelection;
         private bool isSelectingPromotion;
 
+        //eval slider
+        public Slider evalSlider;
+        
+
      
        //notation 
        //this one is for X
@@ -127,9 +131,6 @@ public class ChessBoard : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        string move ="('g8e7'), ";
-    string chopped = move.Substring(2,move.Length-6);
-    Debug.Log (chopped);
     }
       void Awake()
     {
@@ -336,12 +337,41 @@ public class ChessBoard : MonoBehaviour
         //BlackStockFishToMove = false;
     }
     private void UpdateEval(string eval, bool team){
+        //ok eval slider
+        // we should also eventually store a list of the evals of positions for end of game analysis
+        // but probably dont need to run it untill the end of game. 
+        // we can also store the evals of the moves in the move list for the same reason
+        //get first letter of eval
+        //todo set eval if ai does not move(trigger eval every move);
+
+   string numberPart = eval.Substring(1,eval.Length-1);
+    Debug.Log ("eval" +numberPart );
+
+   int i = 0;
+   int.TryParse (numberPart, out i);
+      Debug.Log ("eval" + i + " " + eval.Substring(0, 1));
+
+    if (team == true){
+   if (eval.Substring(0, 1) == "+"){
+     evalSlider.value = 500 +i;
+   } else {
+    evalSlider.value = 500 -i;
+   }
+    } else {
+        if (eval.Substring(0, 1) == "+"){
+     evalSlider.value = 500 -i;
+   } else {
+    evalSlider.value = 500 +i;
+   }
+    }
+        
+
         
     }
     private void moveToNotationString(string move, bool team){
         string chopped = move.Substring(2,move.Length-6);
         // get move cordinates 
-        Debug.Log(chopped);
+        //Debug.Log(chopped);
         string firstTwo = chopped.Substring(0,2);
         Debug.Log (firstTwo);
         string secondTwo = chopped.Substring (2,2);
@@ -353,18 +383,63 @@ public class ChessBoard : MonoBehaviour
         int v = 0;
         int.TryParse(secondTwo.Substring(1,1), out v);
         int b = getFileFromLetter (secondTwo.Substring(0,1));
-        //find chess piece from x,y 
+        
+     //find chess piece from x,y 
         ChessPiece cp = chessPieces[y,i-1];
-        Debug.Log (cp.currentY + " " + cp.currentX + cp.type);
+        // Debug.Log (cp.currentY + " " + cp.currentX + cp.type);
         //before we make move we need to check to make sure the engine is not doing any special moves
         // in which case we need to add them as special move object 
-        //easiest was to do that, get avalible moves and then check if there are any special moves and then see what matches up
-        //
+        //easiest way to do that, promotion with have it in 5th char,
+        //castling has rights in the previous fen and then king making a double jump. if have castling rights and double jump it's a castle
+        //en passant has enpassant square avalible in previous fen, if it matches with second move then its en passant
         //e1g1 (white short castling) // e7e8q (for promotion)
+        //will also have to do load board from fen module in order to test everything out
+        //promotion
+        string promotionString = null;
+        if (chopped.Length == 6){
+        string fifthLetter = chopped.Substring(4,1);
+           if (fifthLetter == "q" ||fifthLetter == "r" || fifthLetter == "b" || fifthLetter == "n"){
+            promotionString = fifthLetter;
+            specialMove = SpecialMove.Promotion;
+            //still need to process promotion for uci in special move ai
+        }
+        }
+        
+     
+        //en passant
+        //first lets get fen split by spaces, used for castling aswell
+        string[] splitFen = previousFen.Split(" ");
+        //now lets check the en passant square, if it's a - no en passant, but if it's notation we need to compare with second string, if match then en passant happended
+        if (splitFen[3] != "-"){
+            // en passant avalible last move
+            Debug.Log (splitFen[3]);
+            if (secondTwo == splitFen[3]){
+                //en passant went down
+                specialMove = SpecialMove.EnPassant;
+            }
+        }
+        //castling for specific team we cant just look for double jump as it could be a different pieice
+        // look to see if A there are castling rights for that team in pervious fen
+        //then if that is true look to see if the king starting square was the first move
+        // now if the second move is not adjacent to first move
 
+        //alternitive may be easier
+        //check for team if proper king square then look for double jump, and look if king is in that location
+        if (cp.type == ChessPieceType.King){
+            if (isWhiteTurn == true){
+                //is king move
+                if (firstTwo == "e1" && (secondTwo == "g1"|| secondTwo == "c1")){
+                    specialMove = SpecialMove.Castling;
+                } 
+            } else {
+                if (firstTwo == "e8" && (secondTwo == "g8"|| secondTwo == "c8")){
+                    specialMove = SpecialMove.Castling; 
+                }
+            }
+        }        
 
         //now move to
-         MoveToAI(cp,b,v-1); 
+         MoveToAI(cp,b,v-1, promotionString); 
         Debug.Log ("moved");
 
     
@@ -539,6 +614,7 @@ public IEnumerator ProcessCheck(){
                }
                didLastMoveCapture = true;
                //its redundant but because we reset it in different spots lets just do it
+               
                capturedPiece = true;
 
                deadWhites.Add (ocp);
@@ -616,6 +692,7 @@ public IEnumerator ProcessCheck(){
 
 
     }
+ 
     private void ProcessNotation(){
     moveNumber ++;
      realMoveNumber= 1;
@@ -2214,11 +2291,134 @@ return numMoves;
 
       if (specialMove == SpecialMove.Promotion)
       { 
-    isSelectingPromotion = true;
-     //Debug.Log ("Promotion!!!");
-      ProcessPromotionUi();
+        if (promo == "q"){
 
-      }
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Queen,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteQueen = true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Queen,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteQueen = true;
+              }
+          }
+    }
+     if (promo == "r"){
+
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Rook,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteRook = true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Rook,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteRook = true;
+              }
+          }
+    }
+        if (promo == "b"){
+
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Bishop,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteBishop= true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Bishop,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteBishop = true;
+              }
+          }
+       
+    }
+         
+        if (promo == "n"){
+
+          Vector2Int[] lastMove  = moveList[moveList.Count-1];
+          ChessPiece targetPawn = chessPieces[lastMove[1].x,lastMove[1].y];
+
+          if (targetPawn.type == ChessPieceType.Pawn)
+          {
+              if (targetPawn.team== 0 && lastMove[1].y == 7){
+                  //change it to select promotion
+                  
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Knight,0);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                  //eventually gonna do ui to select
+                  didPromoteKnight= true;
+
+              }
+                if (targetPawn.team== 1 && lastMove[1].y == 0){
+                  //change it to select promotion
+                  ChessPiece newQueen = SpawnSinglePiece(ChessPieceType.Knight,1);
+                  newQueen.transform.position = chessPieces[lastMove[1].x, lastMove[1].y].gameObject.transform.position;
+                  Destroy(chessPieces[lastMove[1].x, lastMove[1].y].gameObject);
+                  chessPieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                  PositionSinglePiece(lastMove[1].x, lastMove[1].y);
+                //eventually gonna do ui to select
+                  didPromoteKnight = true;
+              }
+          }
+    }   
+
+        }
       if (specialMove == SpecialMove.Castling){
           threeFoldCastle = true;
 
