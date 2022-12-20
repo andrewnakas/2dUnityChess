@@ -62,15 +62,21 @@ public class Pawn : ChessPiece
                 if (Mathf.Abs (lastMove[0].y - lastMove[1].y) == 2){
 
                     if (board[lastMove[1].x, lastMove[1].y].team != team){
+                        
+                        if (lastMove[1].y == currentY) {
                         //land right or left
                         if (lastMove[1].x == currentX-1){
                             availableMoves.Add(new Vector2Int(currentX-1, currentY + direction ));
+                           Debug.Log ("Enpassnt" + lastMove[1].x  + " "+ " " + (currentX-1 ));
                             return SpecialMove.EnPassant;
                         }
                          if (lastMove[1].x == currentX+1){
                             availableMoves.Add(new Vector2Int(currentX+1, currentY + direction ));
+                            Debug.Log ("Enpassnt1");
+
                             return SpecialMove.EnPassant;
 
+                        }
                         }
                     }
                 }

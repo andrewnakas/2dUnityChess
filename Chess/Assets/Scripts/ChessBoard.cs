@@ -206,7 +206,7 @@ public class ChessBoard : MonoBehaviour
    if ((isWhiteTurn && AiCTR.isWhiteStockfish == false ) || (!isWhiteTurn && AiCTR.isBlackStockfish == false)){
 
 
-    if ( Physics.Raycast(ray, out info,100,LayerMask.GetMask("Tile", "Hover","Highlight")))
+    if ( Physics.Raycast(ray, out info,100,LayerMask.GetMask("Tile", "Hover","Highlight","LastMoveStart","LastMoveFinshed")))
     {
         Vector2Int hitPosition = LookupTileIndex (info.transform.gameObject);
                    // Debug. Log("hit" + hitPosition);
@@ -214,12 +214,20 @@ public class ChessBoard : MonoBehaviour
         if(currentHover == -Vector2Int.one){
            Debug. Log("hit" + hitPosition);
             currentHover = hitPosition;
-            tiles [hitPosition.x,hitPosition.y].layer = LayerMask.NameToLayer("Hover");
+             //eventually make a different tile that is if you hover over other tiles, tie into customize board
+             if ( tiles[currentHover.x, currentHover.y].layer == 10 || tiles[currentHover.x, currentHover.y].layer == 9 ){
+            //tiles [hitPosition.x,hitPosition.y].layer = LayerMask.NameToLayer("Hover");
+             } else  {
+
+             }
         }
         if (currentHover != hitPosition){
-             tiles[currentHover.x, currentHover.y].layer = (ContainsValidMove(ref availableMoves, currentHover)) ? LayerMask.NameToLayer("Highlight") : LayerMask.NameToLayer("Tile");;
+string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].layer);
+            
+            tiles[currentHover.x, currentHover.y].layer = (ContainsValidMove(ref availableMoves, currentHover)) ? LayerMask.NameToLayer("Highlight") : LayerMask.NameToLayer(layerName);;
+           // tiles [hitPosition.x,hitPosition.y].layer = LayerMask.NameToLayer("Hover");
+             
             currentHover = hitPosition;
-            tiles [hitPosition.x,hitPosition.y].layer = LayerMask.NameToLayer("Hover");
         }
         if (Input.GetMouseButtonDown(0)){
 
@@ -231,6 +239,7 @@ public class ChessBoard : MonoBehaviour
                 currentlyDragging = chessPieces[hitPosition.x, hitPosition.y];
              availableMoves =  currentlyDragging.GetAvailableMoves(ref chessPieces, TileCountX,TileCountY);
              specialMove = currentlyDragging.GetSpecialMoves(ref chessPieces, ref moveList,ref availableMoves,TileCountX,TileCountY);
+            // Debug.Log (currentlyDragging.x + "this is current piece");
              PreventCheck(); 
             HighlightTiles();
             }
@@ -251,14 +260,18 @@ public class ChessBoard : MonoBehaviour
                 
              }
               currentlyDragging = null;
-            RemoveHighlightTiles();
+             RemoveHighlightTiles();
          }
         
     }
     }  else {
             if (currentHover != -Vector2Int.one)
                 {
+                                 if ( tiles[currentHover.x, currentHover.y].layer == 10 || tiles[currentHover.x, currentHover.y].layer == 9 ){
+            } else {
+                
                  tiles[currentHover.x, currentHover.y].layer = (ContainsValidMove(ref availableMoves, currentHover)) ? LayerMask.NameToLayer("Highlight") : LayerMask.NameToLayer("Tile");
+                                }
                 currentHover = -Vector2Int.one;
                  }
 
@@ -541,11 +554,15 @@ public class ChessBoard : MonoBehaviour
     ChessPiece cp = Instantiate(prefabs[(int)type -1], transform).GetComponent<ChessPiece>() ;
     cp.type = type;
     cp.team = team;
+    //piece layer
+    cp.gameObject.layer =  LayerMask.NameToLayer("Piece");
     return cp;
         } else {
       ChessPiece cp = Instantiate(prefabs[(int)type +5], transform).GetComponent<ChessPiece>() ;
     cp.type = type;
     cp.team = team;
+    cp.gameObject.layer =  LayerMask.NameToLayer("Piece");
+
     return cp;
         }
     }
@@ -567,16 +584,38 @@ public class ChessBoard : MonoBehaviour
 
         for (int i = 0; i < availableMoves.Count; i++)
         {
-           tiles[availableMoves[i].x, availableMoves[i].y].layer =  LayerMask.NameToLayer("Highlight");
+            if ( tiles[availableMoves[i].x, availableMoves[i].y].layer != 10){
+                 tiles[availableMoves[i].x, availableMoves[i].y].layer =  LayerMask.NameToLayer("Highlight");
         }
+    }
     }
         private void RemoveHighlightTiles(){
 
         for (int i = 0; i < availableMoves.Count; i++)
         {
-           tiles[availableMoves[i].x, availableMoves[i].y].layer =  LayerMask.NameToLayer("Tile");
+            //check to make sure its not the valid last move,
+            if ( tiles[availableMoves[i].x, availableMoves[i].y].layer != 10){
+                    tiles[availableMoves[i].x, availableMoves[i].y].layer =  LayerMask.NameToLayer("Tile");
+            }
         }
         availableMoves.Clear();
+    }
+    private void AddLastMoveYellowHighlight(){
+
+        Vector2Int[] lastMove =    moveList[moveList.Count - 1];
+        //Debug.Log (lastMove[0].x + " " + lastMove[0].y + " " + lastMove[1].x + " " + lastMove[1].y);
+        tiles[lastMove[0].x, lastMove[0].y].layer =  LayerMask.NameToLayer("LastMoveStart");
+        tiles[lastMove[1].x, lastMove[1].y].layer =  LayerMask.NameToLayer("LastMoveFinshed");
+        //ok so what is happening is then when the tile gets removed its highlights later it then removes the last move highlight so can we put the method farther down?
+        Debug.Log ("tiles set to indicate last move" + tiles[lastMove[1].x, lastMove[1].y].layer );
+
+    }
+
+    private void RemoveLastMoveYellowHighlight(){
+        Vector2Int[] lastMove =    moveList[moveList.Count - 1];
+
+        tiles[lastMove[0].x, lastMove[0].y].layer =  LayerMask.NameToLayer("Tile");
+        tiles[lastMove[1].x, lastMove[1].y].layer =  LayerMask.NameToLayer("Tile");
     }
 
 private bool ContainsValidMove(ref List<Vector2Int> moves, Vector2 pos){
@@ -636,8 +675,14 @@ public IEnumerator ProcessCheck(){
         chessPieces[x,y] = cp;
         chessPieces[previousPosition.x,previousPosition.y] = null; 
         PositionSinglePiece(x,y);
+        //before move list check if move list != 0 and if its not set highlight to not true
+        if (moveList.Count > 0){
+        RemoveLastMoveYellowHighlight();
+        }
         //add to move list 
         moveList.Add (new Vector2Int[] {previousPosition , new Vector2Int(x,y) } );
+         //add last move hightlight here so it doesnt get removed earlie 
+        AddLastMoveYellowHighlight();
         //check for moved pawn 50 move draw rule
         if (cp.type == ChessPieceType.Pawn){
             movedPawn = true;
@@ -669,8 +714,7 @@ public IEnumerator ProcessCheck(){
          {
         CheckforCastles(cp, previousPosition);
        }
-
-     
+       
         //is selecting promotion means the turn is not over until you select your piece you want
         if (isSelectingPromotion == false ){
         previousFen = GenerateFenFromBoard(chessPieces,isWhiteTurn, !hasForfietedWhiteCastleQueensSize, !hasForfietedWhiteCastleKingsSize,!hasForfietedBlackCastleQueensSize,!hasForfietedBlackCastleKingsSize,pawnDoubleJump);
@@ -682,6 +726,8 @@ public IEnumerator ProcessCheck(){
         CheckFor50MoveDraw();
         //Debug.Log (fen);
         isWhiteTurn = !isWhiteTurn;
+         
+
 
        
        
@@ -2201,8 +2247,12 @@ return numMoves;
         chessPieces[x,y] = cp;
         chessPieces[previousPosition.x,previousPosition.y] = null; 
         PositionSinglePiece(x,y);
+         if (moveList.Count > 0){
+        RemoveLastMoveYellowHighlight();
+        }
         //add to move list 
         moveList.Add (new Vector2Int[] {previousPosition , new Vector2Int(x,y) } );
+        AddLastMoveYellowHighlight();
         //check for moved pawn 50 move draw rule
         if (cp.type == ChessPieceType.Pawn){
             movedPawn = true;

@@ -14,11 +14,11 @@ TagManager:
   - Hover
   - Tile
   - Highlight
-  - 
-  - 
-  - 
-  - 
-  - 
+  - LastMoveStart
+  - LastMoveFinshed
+  - PreMoveStart
+  - PreMoveFinshed
+  - Piece
   - 
   - 
   - 
