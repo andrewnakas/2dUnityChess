@@ -46,6 +46,5 @@ public class huggingFaceStock : MonoBehaviour
 
 public class ChessFen {
     public List<string> data;
-   
-
+    
 }

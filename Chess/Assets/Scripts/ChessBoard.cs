@@ -41,6 +41,23 @@ public class ChessBoard : MonoBehaviour
     private List<ChessPiece> deadWhites = new List<ChessPiece>();
     private List<ChessPiece> deadBlacks = new List<ChessPiece>();
     private List<Vector2Int[]> moveList = new List<Vector2Int[]>();
+    
+    //reference for cycxling back through moves, eventually add on side movs for analysis
+    private int moveListPosition;
+    //to make it easy for cycling back lets just keep a position for each position also for analyzing
+    private List<ChessPiece[,]> chessPositions = new List<ChessPiece[,]>();
+    //this is bool to track wether a person can make a move in a game of chess this can be eventually extended to allow sidelines in the analysis section
+   //reference for chess postion start point
+   private ChessPiece[,] chessPiecesStart;
+   
+   public bool isAtTopMove = true;
+
+
+    //so for chess positions when going back we can properly remove the currently highlighed tiles
+    private Vector2Int lastYellow;
+    private Vector2Int firstYellow;
+
+    //this is global turn coontrol
     private bool isWhiteTurn;
     [Header("Prefabs & Materials")]
     [SerializeField] private GameObject[] prefabs;
@@ -54,7 +71,8 @@ public class ChessBoard : MonoBehaviour
          int yOffset =0;
          float tileSize = 1f;
          private SpecialMove specialMove;
-         public ChessPiece[,] chessPieces;  
+         public ChessPiece[,] chessPieces;
+         public ChessPiece[,] chessPiecesPrevious;   
          [SerializeField]private float deathSize= .1f;
         [SerializeField]private float deathSpacing= .5f;
        [SerializeField] private float dragOffset = 0.75f;
@@ -123,6 +141,8 @@ public class ChessBoard : MonoBehaviour
 
         [SerializeField]private TMPro.TMP_Text notationText;
         private List<string> moveNotationList = new List<string>();
+        private List<string> currentmoveNotationRef = new List<string>();
+
         private int moveNumber;
         private bool movedPawn;
         private bool capturedPiece;
@@ -138,8 +158,20 @@ public class ChessBoard : MonoBehaviour
         GenerateAllTiles(8,8);
         SpawnAllPieces();
         PositionAllPieces();
-     int testMoves =    MoveGenerationTest(2);
-     Debug.Log (testMoves);
+     //int testMoves =    MoveGenerationTest(2);
+     //Debug.Log (testMoves);
+      //add first move
+      ChessPiece[,] chessPieceRef = new ChessPiece[TileCountX,TileCountY];
+           // ChessPiece[,] simulation = new ChessPiece[TileCountX,TileCountY];
+        for (int i = 0; i < TileCountX; i++){
+            for (int j = 0; j < TileCountY; j++){
+                chessPieceRef[i,j] = chessPieces[i,j];
+            }
+        }
+        //chessPositions.Add (chessPieceRef);
+        chessPiecesStart = chessPieceRef;
+        //moveList.Add (new Vector2Int[] {new Vector2Int(-1,-1) , new Vector2Int(-1,-1) });
+
     }
     public void GenerateAllTiles( int tileX, int tileY){
         tiles = new GameObject[TileCountX,TileCountY];
@@ -195,6 +227,8 @@ public class ChessBoard : MonoBehaviour
     // Update is called once per frame
    private void Update()
     {
+
+        Debug.Log ("move list " + moveList.Count + "chess positions " + chessPositions.Count + "move list position");
         if(!currentCamera)
     {
         currentCamera = Camera.main;
@@ -232,16 +266,20 @@ string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].l
         if (Input.GetMouseButtonDown(0)){
 
         if (chessPieces[hitPosition.x, hitPosition.y] != null){
-
+            
             //is it our turn
             if((chessPieces[hitPosition.x, hitPosition.y].team == 0 && isWhiteTurn) || (chessPieces[hitPosition.x, hitPosition.y].team == 1 && isWhiteTurn == false) ){
-
+            //are we on top move 
+          
+          
                 currentlyDragging = chessPieces[hitPosition.x, hitPosition.y];
+            if (isAtTopMove == true){
              availableMoves =  currentlyDragging.GetAvailableMoves(ref chessPieces, TileCountX,TileCountY);
              specialMove = currentlyDragging.GetSpecialMoves(ref chessPieces, ref moveList,ref availableMoves,TileCountX,TileCountY);
             // Debug.Log (currentlyDragging.x + "this is current piece");
              PreventCheck(); 
             HighlightTiles();
+            }
             }
 
         }
@@ -260,7 +298,7 @@ string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].l
                 
              }
               currentlyDragging = null;
-             RemoveHighlightTiles();
+             RemoveHighlightTiles(); 
          }
         
     }
@@ -531,6 +569,7 @@ string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].l
     }
 
     private void PositionAllPieces(){
+      //  ClearPrevious();
         for (int x = 0; x < TileCountX; x ++ ){
             for (int y = 0; y < TileCountY; y ++ ){
             if (chessPieces[x,y] != null){
@@ -539,6 +578,32 @@ string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].l
 
             }
             }
+    }
+        private void PositionAllPiecesPrevious(){
+        for (int x = 0; x < TileCountX; x ++ ){
+            for (int y = 0; y < TileCountY; y ++ ){
+            if (chessPiecesPrevious[x,y] != null){
+                PositionSinglePiecePrevious(x,y,true);
+            }
+
+            }
+            }
+
+    }
+     private void ClearPrevious(){
+        //because of glitch when switchiung from one piiece to another
+       if (chessPiecesPrevious != null){
+       for (int x = 0; x < TileCountX; x ++ ){
+            for (int y = 0; y < TileCountY; y ++ ){
+            if (chessPiecesPrevious[x,y] != null){
+             //delete the extra peices
+          //  Destroy(chessPiecesPrevious[x,y].gameObject);
+               chessPiecesPrevious[x,y] = null;
+            }
+
+            }
+            }
+       }
 
     }
 
@@ -548,6 +613,15 @@ string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].l
         chessPieces[x,y].currentY = y;
         chessPieces[x,y].SetPosition(getTileCenter(x,y),force);
 
+    }
+     private void PositionSinglePiecePrevious(int x, int y, bool force = false)
+    {
+        chessPiecesPrevious[x,y].currentX = x;
+        chessPiecesPrevious[x,y].currentY = y;
+        chessPiecesPrevious[x,y].SetPosition(getTileCenter(x,y),force);
+        if (chessPiecesPrevious[x,y].gameObject.transform.localScale.x != 0.18f){
+            chessPiecesPrevious[x,y].SetScale(Vector3.one * 0.18f);
+        }
     }
     private ChessPiece SpawnSinglePiece(ChessPieceType type, int team){
         if (team == 0){
@@ -608,7 +682,8 @@ string layerName = LayerMask.LayerToName(tiles[currentHover.x, currentHover.y].l
         tiles[lastMove[1].x, lastMove[1].y].layer =  LayerMask.NameToLayer("LastMoveFinshed");
         //ok so what is happening is then when the tile gets removed its highlights later it then removes the last move highlight so can we put the method farther down?
         Debug.Log ("tiles set to indicate last move" + tiles[lastMove[1].x, lastMove[1].y].layer );
-
+        firstYellow = new Vector2Int  (lastMove[0].x, lastMove[0].y);
+        lastYellow = new Vector2Int(lastMove[1].x, lastMove[1].y);
     }
 
     private void RemoveLastMoveYellowHighlight(){
@@ -681,6 +756,19 @@ public IEnumerator ProcessCheck(){
         }
         //add to move list 
         moveList.Add (new Vector2Int[] {previousPosition , new Vector2Int(x,y) } );
+       // ChessPiece[,] chessPieceRef = ;
+            ChessPiece[,] chessPieceRef = new ChessPiece[TileCountX,TileCountY];
+             for (int i = 0; i < TileCountX; i++){
+            for (int j = 0; j < TileCountY; j++){
+                if (chessPieces[i,j]!= null){
+                chessPieceRef[i,j] = chessPieces[i,j];
+            }
+            }
+        }
+        chessPositions.Add (chessPieceRef);
+       
+        moveListPosition++;
+        Debug.Log ("movelistPosition"  + moveListPosition);
          //add last move hightlight here so it doesnt get removed earlie 
         AddLastMoveYellowHighlight();
         //check for moved pawn 50 move draw rule
@@ -760,6 +848,15 @@ public IEnumerator ProcessCheck(){
       } else {
          notationText.text += s + " ";
       }
+    }
+
+    public void exportMoveToGoBackwardsinNotation(string s){ 
+
+        //test
+        Debug.Log (notationText.text);
+        
+
+
     }
     private string convertMoveArrayToChessCords(Vector2Int[] move)
     {
@@ -850,6 +947,7 @@ public IEnumerator ProcessCheck(){
        didLastMoveCapture = false;
        didCastleKingsSize = false;
        didCastleQueensSize = false;
+       Debug.Log (s);
         return s;
     }
     private string returnProperFile(int i){
@@ -873,6 +971,15 @@ public IEnumerator ProcessCheck(){
        s += "h";
         return s;
     }
+    //cycle through notation on the board// arrow keys also for analysis
+    public void cycleBoardBackOneFrameOneNotation(){
+            
+            
+         //   moveNotationList
+
+    }
+
+
     private bool canOtherPieceMoveToSquare( int xSquare, int ySquare, ChessPieceType pieceToCheck){
        //can other pieces of the same type also move to square? this is for notation check arount if we need to add begining clarfier or specific peice
         
@@ -1404,10 +1511,28 @@ public IEnumerator ProcessCheck(){
       }
       deadWhites.Clear();
       deadBlacks.Clear();
-
+      
+      //clear chess positions 
+      chessPositions.Clear();
+      
       //spawn stuff
       SpawnAllPieces();
       PositionAllPieces();
+      
+      //add initial position too chess pos reference 
+         ChessPiece[,] chessPieceRef = new ChessPiece[TileCountX,TileCountY];
+           // ChessPiece[,] simulation = new ChessPiece[TileCountX,TileCountY];
+        for (int i = 0; i < TileCountX; i++){
+            for (int j = 0; j < TileCountY; j++){
+              if (chessPieces[i,j]!= null){
+                chessPieceRef[i,j] = chessPieces[i,j];
+              }
+            }
+
+        }
+        chessPiecesStart = chessPieceRef;
+
+    
       notationText.text = "Move List: ";
       isWhiteTurn = true;
       
@@ -2252,6 +2377,19 @@ return numMoves;
         }
         //add to move list 
         moveList.Add (new Vector2Int[] {previousPosition , new Vector2Int(x,y) } );
+        
+        ChessPiece[,] chessPieceRef = new ChessPiece[TileCountX,TileCountY];
+           // ChessPiece[,] simulation = new ChessPiece[TileCountX,TileCountY];
+        for (int i = 0; i < TileCountX; i++){
+            for (int j = 0; j < TileCountY; j++){
+                if (chessPieces[i,j]!= null){
+                chessPieceRef[i,j] = chessPieces[i,j];
+                }
+            }
+        }
+        chessPositions.Add (chessPieceRef);
+        //moveListPosition incremented by one because we are adding a move
+         moveListPosition++;
         AddLastMoveYellowHighlight();
         //check for moved pawn 50 move draw rule
         if (cp.type == ChessPieceType.Pawn){
@@ -2525,7 +2663,115 @@ return numMoves;
           }
 
       }  
+
     }
+   //load pgn 
+    /*
     
+1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Be3 Bg7 5. Qd2 c6 6. f3 b5 7. Nge2 Nbd7 8. Bh6
+Bxh6 9. Qxh6 Bb7 10. a3 e5 11. O-O-O Qe7 12. Kb1 a6 13. Nc1 O-O-O 14. Nb3 exd4
+15. Rxd4 c5 16. Rd1 Nb6 17. g3 Kb8 18. Na5 Ba8 19. Bh3 d5 20. Qf4+ Ka7 21. Rhe1
+d4 22. Nd5 Nbxd5 23. exd5 Qd6 24. Rxd4 cxd4 25. Re7+ Kb6 26. Qxd4+ Kxa5 27. b4+
+Ka4 28. Qc3 Qxd5 29. Ra7 Bb7 30. Rxb7 Qc4 31. Qxf6 Kxa3 32. Qxa6+ Kxb4 33. c3+
+Kxc3 34. Qa1+ Kd2 35. Qb2+ Kd1 36. Bf1 Rd2 37. Rd7 Rxd7 38. Bxc4 bxc4 39. Qxh8
+Rd3 40. Qa8 c3 41. Qa4+ Ke1 42. f4 f5 43. Kc1 Rd2 44. Qa7 1-0
+    */
+
+    public void loadPgnToBoard(){
+
+
+
+
+
+
+
+    }
+
+// this is the core componet the cycles back through moves
+// to do make is so returned pieces rescale when captured Done!
+// make is so that dead pieces are scaled back down to team spot
+//this is particullarly hard due to issue with captured pieces still being back in play on field if you then go back to the top move
+/*
+make sure that the special moves are also saved and updated if changed
+*/
+
+
+    public void cycleBackOneMove(){
+         
+
+        Debug.Log (moveListPosition);
+        if (moveListPosition > 0 ){
+        Debug.Log ("sending back one" +moveListPosition);
+        moveListPosition--;
+        }
+        Debug.Log (moveListPosition + "chess pos " + chessPositions.Count + "move list " + moveList.Count);
+
+        if (moveListPosition >=1) {
+        isAtTopMove = false;
+
+        MoveToPositionFromPosition(chessPositions[moveListPosition-1], moveList[moveListPosition-1][1], moveList[moveListPosition-1][0]);
+        } else if (moveListPosition ==0) {
+        isAtTopMove = false;
+        MoveToPositionFromPosition(chessPiecesStart , new Vector2Int(-1,-1), new Vector2Int(-1,-1));
+        
+        } 
+        //moveListPosition--;
+
+        
+       
+      //  Debug.Log (moveList[moveListPosition]);
+    }
+
+    public void cycleForwardOneMove(){
+
+        Debug.Log (moveListPosition + "count" + moveList.Count);
+        if (moveListPosition < moveList.Count){
+        moveListPosition++;
+        Debug.Log ("sending forward one" +moveListPosition);
+        if (moveListPosition == moveList.Count ){
+            isAtTopMove = true;
+        } else {
+            isAtTopMove = false;
+        }
+        Debug.Log (moveListPosition + "chess pos " + chessPositions.Count + "move list " + moveList.Count);
+        MoveToPositionFromPosition(chessPositions[moveListPosition-1], moveList[moveListPosition-1][0], moveList[moveListPosition-1][1]);
+        }
+       
+   //     Debug.Log (moveList[moveListPosition]);
+    }
+    public void MoveToPositionFromPosition(ChessPiece[,] newPos, Vector2Int oldMove,  Vector2Int newMove){
+        if (isAtTopMove){
+        // ok this was causing that crazy gltich have to just use the proper reference to ches pieces
     
+        //chessPieces = newPos;
+        PositionAllPieces();
+    } else {
+         chessPiecesPrevious = newPos;
+        // PositionAllPieces();
+        
+        PositionAllPiecesPrevious();
+    }
+        Debug.Log ("ok");
+
+        if (oldMove.x != -1 && newMove.x != -1){
+        //reposition the pieces on the board does not work
+         //set the current highlighting pieces back to normal 
+         //is one off with the highlighting
+         
+        tiles[firstYellow.x, firstYellow.y].layer =  LayerMask.NameToLayer("Tile");
+        tiles[lastYellow.x, lastYellow.y].layer =  LayerMask.NameToLayer("Tile");
+        //set the new highlighting pieces to first and last yellow
+        
+        
+        firstYellow = oldMove;
+        lastYellow = newMove;
+        //highlight the old and new moves in the last position and new position
+        //we neeed a check to not highlight tiles if its the first move
+        
+        tiles[newMove.x, newMove.y].layer =  LayerMask.NameToLayer("LastMoveStart");
+        tiles[oldMove.x, oldMove.y].layer =  LayerMask.NameToLayer("LastMoveFinshed");
+        }
+       
+    }
+
 }
